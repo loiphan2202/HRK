@@ -1,0 +1,97 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+  enum UserRole {
+    CUSTOMER
+    ADMIN
+  }
+
+  model User {
+    id        String   @id @default(auto()) @map("_id") @db.ObjectId
+    email     String   @unique
+    name      String?
+    image     String?  // relative public path to user image, e.g. /uploads/users/xxx.jpg
+    password  String
+    role      UserRole @default(CUSTOMER)
+    orders    Order[]
+  }
+
+  model Category {
+    id        String   @id @default(auto()) @map("_id") @db.ObjectId
+    name      String   @unique
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+    products  Product[]
+  }
+
+  model Product {
+    id          String   @id @default(auto()) @map("_id") @db.ObjectId
+    name        String
+    description String?
+    image       String?  // relative public path to product image, e.g. /uploads/products/xxx.jpg
+    price       Float
+    stock       Int
+    category    Category @relation(fields: [categoryId], references: [id])
+    categoryId  String   @db.ObjectId
+    orderProducts OrderProduct[]
+  }
+
+  enum OrderStatus {
+    PENDING
+    PROCESSING
+    COMPLETED
+    CANCELLED
+  }
+
+  enum TableStatus {
+    AVAILABLE
+    OCCUPIED
+    RESERVED
+  }
+
+  model Table {
+    id        String   @id @default(auto()) @map("_id") @db.ObjectId
+    number    Int      @unique
+    status    TableStatus @default(AVAILABLE)
+    token     String?  @unique // Encrypted token for QR code check-in
+    qrCode    String?  // Base64 QR code image data
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+    orders    Order[]
+  }
+
+  model Order {
+    id         String      @id @default(auto()) @map("_id") @db.ObjectId
+    user       User?       @relation(fields: [userId], references: [id])
+    userId     String?     @db.ObjectId
+    table      Table?      @relation(fields: [tableId], references: [id])
+    tableId    String?     @db.ObjectId
+    tableNumber Int?       // For tracking table number
+    products   OrderProduct[]
+    total      Float
+    status     OrderStatus @default(PENDING)
+    createdAt  DateTime    @default(now())
+    updatedAt  DateTime    @updatedAt
+  }
+
+  model OrderProduct {
+    id        String   @id @default(auto()) @map("_id") @db.ObjectId
+    order     Order    @relation(fields: [orderId], references: [id])
+    orderId   String   @db.ObjectId
+    product   Product  @relation(fields: [productId], references: [id])
+    productId String   @db.ObjectId
+    quantity  Int
+  }

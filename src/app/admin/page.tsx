@@ -1,0 +1,97 @@
+"use client"
+
+import { useAuth } from "@/contexts/auth-context"
+import { useRouter } from "next/navigation"
+import { useEffect } from "react"
+import Link from "next/link"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Package2, ShoppingCart, Table, Tags } from "lucide-react"
+
+export default function AdminPage() {
+  const { user, isAdmin, isLoading } = useAuth()
+  const router = useRouter()
+
+  useEffect(() => {
+    if (!isLoading && !isAdmin()) {
+      router.push("/")
+    }
+  }, [user, isLoading, isAdmin, router])
+
+  if (isLoading || !isAdmin()) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <p className="text-muted-foreground">Loading...</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex flex-col space-y-8 w-full">
+      <div>
+        <h1 className="text-4xl font-bold tracking-tight">Admin Dashboard</h1>
+        <p className="text-muted-foreground mt-2">
+          Manage products, orders, and tables
+        </p>
+      </div>
+
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <Link href="/admin/products">
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Package2 className="h-5 w-5" />
+                Products
+              </CardTitle>
+              <CardDescription>
+                Manage product catalog, categories, and inventory
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        </Link>
+
+        <Link href="/admin/orders">
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ShoppingCart className="h-5 w-5" />
+                Orders
+              </CardTitle>
+              <CardDescription>
+                View and manage all orders, update status
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        </Link>
+
+        <Link href="/admin/tables">
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Table className="h-5 w-5" />
+                Tables
+              </CardTitle>
+              <CardDescription>
+                Manage tables and generate QR codes
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        </Link>
+
+        <Link href="/admin/categories">
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Tags className="h-5 w-5" />
+                Categories
+              </CardTitle>
+              <CardDescription>
+                Manage product categories
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        </Link>
+      </div>
+    </div>
+  )
+}
+
