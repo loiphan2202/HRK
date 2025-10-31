@@ -1,0 +1,143 @@
+import { Order } from '@/generated/prisma/client';
+import { OrderRepository } from '../repositories/order-repository';
+import { ProductService } from './product-service';
+import { TableService } from './table-service';
+import { OrderCreate, OrderUpdate } from '../schemas/order-schema';
+import { NotFoundError, BadRequestError } from '../errors/base-error';
+import { prisma } from '@/lib/prisma';
+
+export class OrderService {
+  private readonly repository: OrderRepository;
+  private readonly productService: ProductService;
+  private readonly tableService: TableService;
+
+  constructor() {
+    this.repository = new OrderRepository();
+    this.productService = new ProductService();
+    this.tableService = new TableService();
+  }
+
+  async findById(id: string): Promise<Order> {
+    const order = await this.repository.findById(id);
+    if (!order) {
+      throw new NotFoundError('Order not found');
+    }
+    return order;
+  }
+
+  async findByUserId(userId: string): Promise<Order[]> {
+    return await this.repository.findByUserId(userId);
+  }
+
+  async findAll(filters?: { tableNumber?: string | null; status?: string | null }): Promise<Order[]> {
+    const where: any = {};
+    if (filters?.tableNumber) {
+      where.tableNumber = parseInt(filters.tableNumber);
+    }
+    if (filters?.status && filters.status !== undefined) {
+      where.status = filters.status;
+    }
+    return await this.repository.findAll(Object.keys(where).length > 0 ? where : undefined);
+  }
+
+  async update(id: string, data: OrderUpdate): Promise<Order> {
+    const order = await this.findById(id); // Check if order exists
+    
+    // If status is being updated to COMPLETED, update table status
+    if (data.status === 'COMPLETED' && order.tableId) {
+      // Check if there are other pending/processing orders for this table
+      const otherOrders = await this.repository.findAll({
+        tableNumber: order.tableNumber?.toString() || undefined,
+        status: undefined,
+      });
+      
+      const hasActiveOrders = otherOrders.some(
+        o => o.id !== order.id && (o.status === 'PENDING' || o.status === 'PROCESSING')
+      );
+      
+      if (!hasActiveOrders && order.tableId) {
+        await this.tableService.updateStatus(order.tableId, 'AVAILABLE');
+      }
+    }
+    
+    return await this.repository.update(id, data);
+  }
+
+  async create(data: OrderCreate): Promise<Order> {
+    if (!data.products.length) {
+      throw new BadRequestError('Order must contain at least one product');
+    }
+
+  let total = 0;
+
+  // Use a transaction to ensure data consistency
+  return await prisma.$transaction(async () => {
+      // Check stock and calculate total
+      for (const item of data.products) {
+        if (item.quantity <= 0) {
+          throw new BadRequestError('Product quantity must be positive');
+        }
+
+        const product = await this.productService.findById(item.productId);
+        if (product.stock < item.quantity) {
+          throw new BadRequestError(`Insufficient stock for product ${product.name}`);
+        }
+        total += product.price * item.quantity;
+      }
+
+      // Create order (include computed total)
+      const createPayload: OrderCreate & { total: number } = {
+        ...data,
+        total,
+      };
+
+      // Handle table status if tableNumber is provided
+      if (data.tableNumber) {
+        // Validate token if provided
+        if (data.tableToken) {
+          const tableByToken = await this.tableService.findByToken(data.tableToken);
+          if (!tableByToken) {
+            throw new BadRequestError('Invalid table token. Please check in using QR code.');
+          }
+          if (tableByToken.number !== data.tableNumber) {
+            throw new BadRequestError('Table token does not match table number.');
+          }
+        } else {
+          // Token is required for ordering
+          throw new BadRequestError('Table token is required. Please check in using QR code.');
+        }
+
+        let table = await this.tableService.findByNumber(data.tableNumber);
+        if (!table) {
+          throw new BadRequestError(`Table ${data.tableNumber} not found. Please check in using QR code.`);
+        }
+
+        // Check if table has pending orders
+        const pendingOrders = await this.repository.findAll({
+          tableNumber: data.tableNumber.toString(),
+          status: 'PENDING',
+        });
+        if (pendingOrders.length > 0) {
+          throw new BadRequestError('Table is occupied with pending orders');
+        }
+        // Update table to OCCUPIED
+        await this.tableService.updateStatus(table.id, 'OCCUPIED');
+        createPayload.tableId = table.id;
+      } else {
+        // Table number is required
+        throw new BadRequestError('Table number is required');
+      }
+
+      const order = await this.repository.create(createPayload);
+
+      // Update stock for all products
+      await Promise.all(
+        data.products.map(item =>
+          this.productService.updateStock(item.productId, item.quantity)
+        )
+      );
+
+      return order;
+    });
+  }
+}
