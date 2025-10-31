@@ -1,0 +1,21 @@
+{
+  "pages": {
+    "/admin/orders/page": [
+      "static/chunks/18613b3de608cb97.css",
+      "static/chunks/ed5d1491107b97b5.js",
+      "static/chunks/2e14d7533ff8a820.js",
+      "static/chunks/347b367973ac0217.js",
+      "static/chunks/7dd66bdf8a7e5707.js",
+      "static/chunks/3da5e95df7bab929.js",
+      "static/chunks/9f8ed746b240f70e.js",
+      "static/chunks/7e1638508792a29f.js",
+      "static/chunks/77142f7dcb009d90.js",
+      "static/chunks/0e88b4b780bf4c60.js",
+      "static/chunks/91adb7bdb9870c6a.js",
+      "static/chunks/8082ab48faca5ea1.js",
+      "static/chunks/111c2078ff56494a.js",
+      "static/chunks/2008ffcf9e5b170c.js",
+      "static/chunks/turbopack-53d8cf179cfe0f89.js"
+    ]
+  }
+}
