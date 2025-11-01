@@ -103,7 +103,7 @@ export default function Home() {
       <div className="flex flex-col items-center space-y-4">
         <h1 className="text-4xl font-bold tracking-tight">Cửa Hàng</h1>
         <p className="text-muted-foreground text-center max-w-2xl">
-          Duyệt qua bộ sưu tập sản phẩm của chúng tôi. Tìm kiếm những gì bạn đang tìm với tính năng tìm kiếm.
+          Chào mừng quý khách tới nhà hàng của chúng tôi!
         </p>
       </div>
 
