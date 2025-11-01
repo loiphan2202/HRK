@@ -2,7 +2,6 @@ import { Table } from '@/generated/prisma/client';
 import { TableRepository } from '../repositories/table-repository';
 import { TableCreate, TableUpdate } from '../schemas/table-schema';
 import { NotFoundError, BadRequestError } from '../errors/base-error';
-import { prisma } from '@/lib/prisma';
 
 export class TableService {
   private readonly repository: TableRepository;
@@ -31,12 +30,11 @@ export class TableService {
     return await this.repository.findByToken(token);
   }
 
-  async generateQrCode(id: string): Promise<Table> {
-    const table = await this.findById(id);
+  async generateQrCode(id: string, baseUrl: string): Promise<Table> {
+    await this.findById(id);
     
     const { generateToken, generateQrCodeImage } = await import('@/lib/qr-code');
     const token = generateToken();
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
     const checkInUrl = `${baseUrl}/check-in?token=${token}`;
     
     // Generate QR code image

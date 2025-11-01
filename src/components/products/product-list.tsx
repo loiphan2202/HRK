@@ -2,8 +2,10 @@
 
 import Image from "next/image"
 import { useState, useEffect } from "react"
-import { Edit2, MoreHorizontal, Trash } from "lucide-react"
+import { Edit2, MoreHorizontal, Trash, Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,7 +40,12 @@ interface Product {
   price: number
   stock: number
   image: string | null
-  categoryId: string
+  categories?: Array<{
+    category: {
+      id: string
+      name: string
+    }
+  }>
 }
 
 async function getProducts(): Promise<Product[]> {
@@ -47,10 +54,19 @@ async function getProducts(): Promise<Product[]> {
   return data.data
 }
 
+interface Category {
+  id: string
+  name: string
+}
+
 export function ProductList() {
   const { isAdmin } = useAuth()
   const [products, setProducts] = useState<Product[]>([])
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [selectedCategory, setSelectedCategory] = useState<string>("ALL")
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; productId: string | null }>({
     open: false,
     productId: null,
@@ -60,21 +76,73 @@ export function ProductList() {
     product: null,
   })
 
-  // Load products on mount
+  // Load products and categories on mount
   useEffect(() => {
     loadProducts()
+    loadCategories()
   }, [])
+
+  // Lắng nghe sự kiện product-created để update state ngay lập tức
+  useEffect(() => {
+    function handleProductCreated(event: CustomEvent) {
+      const newProduct = event.detail
+      // Thêm product mới vào state ngay lập tức
+      setProducts(prev => [newProduct, ...prev])
+    }
+
+    window.addEventListener('product-created', handleProductCreated as EventListener)
+    return () => {
+      window.removeEventListener('product-created', handleProductCreated as EventListener)
+    }
+  }, [])
+
+  // Filter products when search or category changes
+  useEffect(() => {
+    let filtered = products
+
+    // Filter by category
+    if (selectedCategory !== "ALL") {
+      filtered = filtered.filter((product) => {
+        if (selectedCategory === "NO_CATEGORY") {
+          return !product.categories || product.categories.length === 0
+        }
+        return product.categories?.some(pc => pc.category.id === selectedCategory) || false
+      })
+    }
+
+    // Filter by search query
+    if (searchQuery.trim() !== "") {
+      filtered = filtered.filter((product) =>
+        product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        product.description?.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    }
+
+    setFilteredProducts(filtered)
+  }, [searchQuery, selectedCategory, products])
 
   async function loadProducts() {
     try {
       setLoading(true)
       const data = await getProducts()
       setProducts(data)
+      setFilteredProducts(data)
     } catch (error) {
       console.error('Failed to load products:', error)
-      // You could add a toast notification here
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function loadCategories() {
+    try {
+      const res = await fetch("/api/categories")
+      const data = await res.json()
+      if (data.success) {
+        setCategories(data.data || [])
+      }
+    } catch (error) {
+      console.error("Failed to load categories:", error)
     }
   }
 
@@ -160,6 +228,49 @@ export function ProductList() {
 
   return (
     <>
+      <div className="flex flex-col gap-4 mb-4">
+        <div className="flex flex-col sm:flex-row gap-3 items-center w-full">
+          <div className="relative flex-1 w-full min-w-0">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Tìm kiếm sản phẩm..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+              <SelectTrigger className="w-full sm:w-[200px]">
+                <SelectValue placeholder="Tất cả danh mục" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">Tất cả danh mục</SelectItem>
+                <SelectItem value="NO_CATEGORY">Không có danh mục</SelectItem>
+                {categories.map((cat) => (
+                  <SelectItem key={cat.id} value={cat.id}>
+                    {cat.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          {(searchQuery || selectedCategory !== "ALL") && (
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setSearchQuery("")
+                setSelectedCategory("ALL")
+              }}
+              className="whitespace-nowrap"
+            >
+              Xóa bộ lọc
+            </Button>
+          )}
+        </div>
+      </div>
+
       <div className="rounded-md border">
         <Table>
           <TableHeader>
@@ -175,14 +286,14 @@ export function ProductList() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {products.length === 0 ? (
+            {filteredProducts.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={isAdmin() ? 6 : 5} className="text-center text-muted-foreground">
-                  No products found.
+                  Không tìm thấy sản phẩm.
                 </TableCell>
               </TableRow>
             ) : (
-              products.map((product) => (
+              filteredProducts.map((product) => (
               <TableRow key={product.id}>
                 <TableCell>
                   {product.image ? (
@@ -202,9 +313,11 @@ export function ProductList() {
                   {product.description}
                 </TableCell>
                 <TableCell className="text-right">
-                  ${product.price.toFixed(2)}
+                  {product.price.toLocaleString('vi-VN')}đ
                 </TableCell>
-                <TableCell className="text-right">{product.stock}</TableCell>
+                <TableCell className="text-right">
+                  {product.stock === null ? "Không theo dõi" : product.stock === -1 ? "Không giới hạn" : product.stock}
+                </TableCell>
                 {isAdmin() && (
                   <TableCell className="text-right">
                     <DropdownMenu>

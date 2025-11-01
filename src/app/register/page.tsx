@@ -24,7 +24,7 @@ export default function RegisterPage() {
     setError("")
 
     if (password.length < 6) {
-      setError("Password must be at least 6 characters")
+      setError("Mật khẩu phải có ít nhất 6 ký tự")
       return
     }
 
@@ -34,8 +34,9 @@ export default function RegisterPage() {
       await register(email, password, name || undefined)
       router.push("/")
       router.refresh()
-    } catch (err: any) {
-      setError(err.message || "Failed to register. Please try again.")
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Đăng ký thất bại. Vui lòng thử lại."
+      setError(message)
     } finally {
       setIsLoading(false)
     }
@@ -45,9 +46,9 @@ export default function RegisterPage() {
     <div className="flex items-center justify-center min-h-[calc(100vh-200px)] w-full">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle className="text-2xl">Register</CardTitle>
+          <CardTitle className="text-2xl">Đăng ký</CardTitle>
           <CardDescription>
-            Create a new account to get started
+            Tạo tài khoản mới để bắt đầu
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
@@ -58,11 +59,11 @@ export default function RegisterPage() {
               </div>
             )}
             <div className="space-y-2">
-              <Label htmlFor="name">Name (Optional)</Label>
+              <Label htmlFor="name">Tên (Tùy chọn)</Label>
               <Input
                 id="name"
                 type="text"
-                placeholder="Your name"
+                placeholder="Tên của bạn"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 disabled={isLoading}
@@ -73,7 +74,7 @@ export default function RegisterPage() {
               <Input
                 id="email"
                 type="email"
-                placeholder="your@email.com"
+                placeholder="email@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -81,7 +82,7 @@ export default function RegisterPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">Mật khẩu</Label>
               <Input
                 id="password"
                 type="password"
@@ -93,7 +94,7 @@ export default function RegisterPage() {
                 minLength={6}
               />
               <p className="text-xs text-muted-foreground">
-                Password must be at least 6 characters
+                Mật khẩu phải có ít nhất 6 ký tự
               </p>
             </div>
           </CardContent>
@@ -102,16 +103,16 @@ export default function RegisterPage() {
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Registering...
+                  Đang đăng ký...
                 </>
               ) : (
-                "Register"
+                "Đăng ký"
               )}
             </Button>
             <div className="text-sm text-center text-muted-foreground">
-              Already have an account?{" "}
+              Đã có tài khoản?{" "}
               <Link href="/login" className="text-primary hover:underline">
-                Login
+                Đăng nhập
               </Link>
             </div>
           </CardFooter>

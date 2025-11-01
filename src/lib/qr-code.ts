@@ -20,7 +20,7 @@ export async function generateQrCodeImage(data: string): Promise<string> {
       margin: 1,
     });
     return base64;
-  } catch (error) {
+  } catch {
     throw new Error('Failed to generate QR code image');
   }
 }

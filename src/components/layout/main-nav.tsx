@@ -25,16 +25,19 @@ export function MainNav() {
   const { user, logout, isLoading, isAdmin } = useAuth()
   const itemCount = getItemCount()
 
-  // Navigation items based on role
+  // Mục điều hướng dựa trên vai trò
   const navigation = user && isAdmin() 
     ? [
-        { name: "Products", href: "/admin/products" },
-        { name: "Tables", href: "/admin/tables" },
-        { name: "Orders", href: "/orders" },
+        { name: "Sản phẩm", href: "/admin/products" },
+        { name: "Danh mục", href: "/admin/categories" },
+        { name: "Bàn", href: "/admin/tables" },
+        { name: "Đơn hàng", href: "/admin/orders" },
       ]
-    : [
-        { name: "Orders", href: "/orders" },
+    : user
+    ? [
+        { name: "Đơn hàng", href: "/orders" },
       ]
+    : []
 
   const handleLogout = () => {
     logout()
@@ -50,10 +53,9 @@ export function MainNav() {
             href="/"
             className="flex items-center space-x-2 transition-opacity hover:opacity-80"
           >
-            <div className="flex items-center justify-center w-8 h-8 rounded-md bg-black dark:bg-white text-white dark:text-black font-bold text-lg">
-              N
+            <div className="flex items-center justify-center w-8 h-8 rounded-md bg-black dark:bg-black text-white dark:text-black font-bold text-lg">
+              <Image src="/vercel.svg" alt="logo" width={32} height={32} />
             </div>
-            <span className="text-sm font-bold hidden sm:inline">Next.js</span>
           </Link>
           {navigation.map((item) => (
             <Link
@@ -71,17 +73,19 @@ export function MainNav() {
           ))}
         </div>
         <div className="ml-auto flex items-center space-x-4">
-          <Link href="/cart">
-            <Button variant="ghost" size="icon" className="relative">
-              <ShoppingCart className="h-5 w-5" />
-              {itemCount > 0 && (
-                <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
-                  {itemCount > 9 ? "9+" : itemCount}
-                </span>
-              )}
-              <span className="sr-only">Cart</span>
-            </Button>
-          </Link>
+          {!isAdmin() && (
+            <Link href="/cart">
+              <Button variant="ghost" size="icon" className="relative">
+                <ShoppingCart className="h-5 w-5" />
+                {itemCount > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
+                    {itemCount > 9 ? "9+" : itemCount}
+                  </span>
+                )}
+                <span className="sr-only">Giỏ hàng</span>
+              </Button>
+            </Link>
+          )}
           
           {!isLoading && (
             <>
@@ -95,14 +99,15 @@ export function MainNav() {
                           alt={user.name || user.email}
                           width={32}
                           height={32}
-                          className="rounded-full"
+                          className="rounded-full object-cover aspect-square"
+                          style={{ objectFit: 'cover' }}
                         />
                       ) : (
                         <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground font-semibold">
                           {user.name ? user.name.charAt(0).toUpperCase() : user.email.charAt(0).toUpperCase()}
                         </div>
                       )}
-                      <span className="sr-only">User menu</span>
+                      <span className="sr-only">Menu người dùng</span>
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-56">
@@ -116,13 +121,13 @@ export function MainNav() {
                     <DropdownMenuItem asChild>
                       <Link href="/settings" className="cursor-pointer">
                         <Settings className="mr-2 h-4 w-4" />
-                        Settings
+                        Cài đặt
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link href="/orders" className="cursor-pointer">
                         <User className="mr-2 h-4 w-4" />
-                        My Orders
+                        Đơn hàng của tôi
                       </Link>
                     </DropdownMenuItem>
                     {user.role === 'ADMIN' && (
@@ -131,7 +136,7 @@ export function MainNav() {
                         <DropdownMenuItem asChild>
                           <Link href="/admin" className="cursor-pointer">
                             <Settings className="mr-2 h-4 w-4" />
-                            Admin Dashboard
+                            Trang quản trị
                           </Link>
                         </DropdownMenuItem>
                       </>
@@ -139,7 +144,7 @@ export function MainNav() {
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-red-600">
                       <LogOut className="mr-2 h-4 w-4" />
-                      Logout
+                      Đăng xuất
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -147,12 +152,12 @@ export function MainNav() {
                 <div className="flex items-center space-x-2">
                   <Link href="/login">
                     <Button variant="ghost" size="sm">
-                      Login
+                      Đăng nhập
                     </Button>
                   </Link>
                   <Link href="/register">
                     <Button size="sm">
-                      Register
+                      Đăng ký
                     </Button>
                   </Link>
                 </div>

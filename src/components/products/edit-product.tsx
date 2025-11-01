@@ -8,9 +8,14 @@ interface Product {
   name: string
   description: string | null
   price: number
-  stock: number
+  stock: number | null
   image: string | null
-  categoryId: string
+  categories?: Array<{
+    category: {
+      id: string
+      name: string
+    }
+  }>
 }
 import {
   Dialog,
@@ -23,6 +28,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { Checkbox } from "@/components/ui/checkbox"
 
 
 interface EditProductProps {
@@ -41,12 +47,19 @@ export function EditProduct({ open, onOpenChange, product, onSuccess }: EditProd
   const [loading, setLoading] = useState(false)
   const [categories, setCategories] = useState<Category[]>([])
   const [loadingCategories, setLoadingCategories] = useState(false)
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([])
 
   useEffect(() => {
     if (open) {
       loadCategories()
+      // Load selected categories từ product
+      if (product?.categories) {
+        setSelectedCategoryIds(product.categories.map(pc => pc.category.id))
+      } else {
+        setSelectedCategoryIds([])
+      }
     }
-  }, [open])
+  }, [open, product])
 
   async function loadCategories() {
     try {
@@ -70,6 +83,11 @@ export function EditProduct({ open, onOpenChange, product, onSuccess }: EditProd
     setLoading(true)
     const form = e.currentTarget;
     const formData = new FormData(form);
+
+    // Thêm các categoryIds đã chọn vào formData
+    selectedCategoryIds.forEach(categoryId => {
+      formData.append('categoryIds', categoryId)
+    })
 
     // Kiểm tra xem có file mới không
     const fileInput = form.querySelector('input[type="file"]') as HTMLInputElement;
@@ -96,7 +114,15 @@ export function EditProduct({ open, onOpenChange, product, onSuccess }: EditProd
       onOpenChange(false)
     } finally {
       setLoading(false)
+      }
     }
+
+  function toggleCategory(categoryId: string) {
+    setSelectedCategoryIds(prev => 
+      prev.includes(categoryId)
+        ? prev.filter(id => id !== categoryId)
+        : [...prev, categoryId]
+    )
   }
 
   return (
@@ -130,26 +156,34 @@ export function EditProduct({ open, onOpenChange, product, onSuccess }: EditProd
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="categoryId">Category</Label>
+              <Label>Danh mục (Có thể chọn nhiều)</Label>
               {loadingCategories ? (
                 <div className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm items-center">
-                  Loading categories...
+                  Đang tải danh mục...
                 </div>
               ) : (
-                <select
-                  id="categoryId"
-                  name="categoryId"
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  defaultValue={product?.categoryId || ""}
-                  disabled={loadingCategories || categories.length === 0}
-                >
-                  <option value="">Select a category</option>
-                  {categories.map((cat) => (
-                    <option key={cat.id} value={cat.id}>
-                      {cat.name}
-                    </option>
-                  ))}
-                </select>
+                <div className="flex flex-wrap gap-3 p-3 rounded-md border border-input bg-background">
+                  {categories.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Chưa có danh mục nào</p>
+                  ) : (
+                    categories.map((cat) => (
+                      <div key={cat.id} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`edit-category-${cat.id}`}
+                          checked={selectedCategoryIds.includes(cat.id)}
+                          onCheckedChange={() => toggleCategory(cat.id)}
+                          disabled={loading}
+                        />
+                        <Label
+                          htmlFor={`edit-category-${cat.id}`}
+                          className="text-sm font-normal cursor-pointer"
+                        >
+                          {cat.name}
+                        </Label>
+                      </div>
+                    ))
+                  )}
+                </div>
               )}
             </div>
             <div className="grid gap-2">
@@ -165,15 +199,18 @@ export function EditProduct({ open, onOpenChange, product, onSuccess }: EditProd
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="stock">Stock</Label>
+              <Label htmlFor="stock">Tồn kho (Để trống hoặc -1 = không giới hạn)</Label>
               <Input
                 id="stock"
                 name="stock"
                 type="number"
-                defaultValue={product?.stock}
-                required
+                defaultValue={product?.stock ?? ""}
+                min="-1"
                 disabled={loading}
               />
+              <p className="text-xs text-muted-foreground">
+                Để trống = không theo dõi stock, -1 = không giới hạn, số &gt;= 0 = số lượng cụ thể
+              </p>
             </div>
             <div className="grid gap-2">
               <Label htmlFor="image">Image</Label>

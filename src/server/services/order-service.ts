@@ -29,10 +29,11 @@ export class OrderService {
     return await this.repository.findByUserId(userId);
   }
 
-  async findAll(filters?: { tableNumber?: string | null; status?: string | null }): Promise<Order[]> {
-    const where: any = {};
-    if (filters?.tableNumber) {
-      where.tableNumber = parseInt(filters.tableNumber);
+  async findAll(filters?: { tableNumber?: string | number | null; status?: string | null }): Promise<Order[]> {
+    const where: Record<string, unknown> = {};
+    if (filters?.tableNumber !== undefined && filters?.tableNumber !== null) {
+      // Convert to number if it's a string, otherwise use as-is
+      where.tableNumber = typeof filters.tableNumber === 'string' ? parseInt(filters.tableNumber) : filters.tableNumber;
     }
     if (filters?.status && filters.status !== undefined) {
       where.status = filters.status;
@@ -47,7 +48,7 @@ export class OrderService {
     if (data.status === 'COMPLETED' && order.tableId) {
       // Check if there are other pending/processing orders for this table
       const otherOrders = await this.repository.findAll({
-        tableNumber: order.tableNumber?.toString() || undefined,
+        tableNumber: order.tableNumber || undefined, // Keep as number
         status: undefined,
       });
       
@@ -79,7 +80,8 @@ export class OrderService {
         }
 
         const product = await this.productService.findById(item.productId);
-        if (product.stock < item.quantity) {
+        // Chỉ kiểm tra stock nếu product có stock tracking (stock !== null && stock >= 0)
+        if (product.stock !== null && product.stock >= 0 && product.stock < item.quantity) {
           throw new BadRequestError(`Insufficient stock for product ${product.name}`);
         }
         total += product.price * item.quantity;
@@ -93,7 +95,12 @@ export class OrderService {
 
       // Handle table status if tableNumber is provided
       if (data.tableNumber) {
-        // Validate token if provided
+        const table = await this.tableService.findByNumber(data.tableNumber);
+        if (!table) {
+          throw new BadRequestError(`Table ${data.tableNumber} not found.`);
+        }
+
+        // Validate token nếu có (cho QR check-in)
         if (data.tableToken) {
           const tableByToken = await this.tableService.findByToken(data.tableToken);
           if (!tableByToken) {
@@ -102,24 +109,22 @@ export class OrderService {
           if (tableByToken.number !== data.tableNumber) {
             throw new BadRequestError('Table token does not match table number.');
           }
-        } else {
-          // Token is required for ordering
-          throw new BadRequestError('Table token is required. Please check in using QR code.');
         }
 
-        let table = await this.tableService.findByNumber(data.tableNumber);
-        if (!table) {
-          throw new BadRequestError(`Table ${data.tableNumber} not found. Please check in using QR code.`);
+        // Kiểm tra bàn có đang trống không (cho khách hàng chọn bàn trống)
+        if (table.status !== 'AVAILABLE') {
+          throw new BadRequestError(`Table ${data.tableNumber} is not available. Please choose another table.`);
         }
 
         // Check if table has pending orders
         const pendingOrders = await this.repository.findAll({
-          tableNumber: data.tableNumber.toString(),
+          tableNumber: data.tableNumber, // Keep as number (Int)
           status: 'PENDING',
         });
         if (pendingOrders.length > 0) {
           throw new BadRequestError('Table is occupied with pending orders');
         }
+        
         // Update table to OCCUPIED
         await this.tableService.updateStatus(table.id, 'OCCUPIED');
         createPayload.tableId = table.id;

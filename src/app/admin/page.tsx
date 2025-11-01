@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/auth-context"
 import { useRouter } from "next/navigation"
 import { useEffect } from "react"
 import Link from "next/link"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Package2, ShoppingCart, Table, Tags } from "lucide-react"
 
 export default function AdminPage() {
@@ -20,7 +20,7 @@ export default function AdminPage() {
   if (isLoading || !isAdmin()) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <p className="text-muted-foreground">Loading...</p>
+        <p className="text-muted-foreground">Đang tải...</p>
       </div>
     )
   }
@@ -28,9 +28,9 @@ export default function AdminPage() {
   return (
     <div className="flex flex-col space-y-8 w-full">
       <div>
-        <h1 className="text-4xl font-bold tracking-tight">Admin Dashboard</h1>
+        <h1 className="text-4xl font-bold tracking-tight">Trang quản trị</h1>
         <p className="text-muted-foreground mt-2">
-          Manage products, orders, and tables
+          Quản lý sản phẩm, đơn hàng và bàn
         </p>
       </div>
 
@@ -40,10 +40,10 @@ export default function AdminPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Package2 className="h-5 w-5" />
-                Products
+                Sản phẩm
               </CardTitle>
               <CardDescription>
-                Manage product catalog, categories, and inventory
+                Quản lý danh mục sản phẩm, danh mục và tồn kho
               </CardDescription>
             </CardHeader>
           </Card>
@@ -54,10 +54,10 @@ export default function AdminPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <ShoppingCart className="h-5 w-5" />
-                Orders
+                Đơn hàng
               </CardTitle>
               <CardDescription>
-                View and manage all orders, update status
+                Xem và quản lý tất cả đơn hàng, cập nhật trạng thái
               </CardDescription>
             </CardHeader>
           </Card>
@@ -68,10 +68,10 @@ export default function AdminPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Table className="h-5 w-5" />
-                Tables
+                Bàn
               </CardTitle>
               <CardDescription>
-                Manage tables and generate QR codes
+                Quản lý bàn và tạo mã QR
               </CardDescription>
             </CardHeader>
           </Card>
@@ -82,10 +82,10 @@ export default function AdminPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Tags className="h-5 w-5" />
-                Categories
+                Danh mục
               </CardTitle>
               <CardDescription>
-                Manage product categories
+                Quản lý danh mục sản phẩm
               </CardDescription>
             </CardHeader>
           </Card>

@@ -10,6 +10,7 @@ export class OrderRepository extends BaseRepository<Order, OrderCreateInput, Ord
       findUnique: (args) => this.prisma.order.findUnique({
         ...args,
         include: {
+          user: true,
           products: {
             include: {
               product: true,
@@ -20,11 +21,15 @@ export class OrderRepository extends BaseRepository<Order, OrderCreateInput, Ord
       findMany: (args) => this.prisma.order.findMany({
         ...args,
         include: {
+          user: true,
           products: {
             include: {
               product: true,
             },
           },
+        },
+        orderBy: {
+          createdAt: 'desc',
         },
       }),
       create: (args) => this.prisma.order.create({
@@ -34,14 +39,18 @@ export class OrderRepository extends BaseRepository<Order, OrderCreateInput, Ord
           userId: args.data.userId || undefined,
           tableId: args.data.tableId || undefined,
           tableNumber: args.data.tableNumber || undefined,
-          status: (args.data as any).status || 'PENDING',
+          status: ('status' in args.data && typeof (args.data as Record<string, unknown>).status === 'string') 
+            ? (args.data as Record<string, unknown>).status as 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'CANCELLED'
+            : 'PENDING',
           products: {
             create: args.data.products.map(product => ({
               productId: product.productId,
               quantity: product.quantity,
             })),
           },
-          total: (args.data as any).total || 0,
+          total: ('total' in args.data && typeof (args.data as Record<string, unknown>).total === 'number') 
+            ? (args.data as Record<string, unknown>).total as number 
+            : 0,
         },
         include: {
           products: {
@@ -80,7 +89,7 @@ export class OrderRepository extends BaseRepository<Order, OrderCreateInput, Ord
     });
   }
 
-  async findAll(where?: any): Promise<Order[]> {
+  async findAll(where?: Record<string, unknown>): Promise<Order[]> {
     return await this.getDelegate().findMany({
       where: where || {},
     });

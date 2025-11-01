@@ -27,8 +27,9 @@ export default function LoginPage() {
       await login(email, password)
       router.push("/")
       router.refresh()
-    } catch (err: any) {
-      setError(err.message || "Failed to login. Please try again.")
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Đăng nhập thất bại. Vui lòng thử lại."
+      setError(message)
     } finally {
       setIsLoading(false)
     }
@@ -38,9 +39,9 @@ export default function LoginPage() {
     <div className="flex items-center justify-center min-h-[calc(100vh-200px)] w-full">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle className="text-2xl">Login</CardTitle>
+          <CardTitle className="text-2xl">Đăng nhập</CardTitle>
           <CardDescription>
-            Enter your email and password to access your account
+            Nhập email và mật khẩu để truy cập tài khoản của bạn
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
@@ -55,7 +56,7 @@ export default function LoginPage() {
               <Input
                 id="email"
                 type="email"
-                placeholder="your@email.com"
+                placeholder="email@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -63,7 +64,7 @@ export default function LoginPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">Mật khẩu</Label>
               <Input
                 id="password"
                 type="password"
@@ -81,16 +82,16 @@ export default function LoginPage() {
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Logging in...
+                  Đang đăng nhập...
                 </>
               ) : (
-                "Login"
+                "Đăng nhập"
               )}
             </Button>
             <div className="text-sm text-center text-muted-foreground">
-              Don't have an account?{" "}
+              Chưa có tài khoản?{" "}
               <Link href="/register" className="text-primary hover:underline">
-                Register
+                Đăng ký
               </Link>
             </div>
           </CardFooter>

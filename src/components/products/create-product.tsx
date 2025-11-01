@@ -15,17 +15,38 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { Checkbox } from "@/components/ui/checkbox"
 
 interface Category {
   id: string
   name: string
 }
 
-export function CreateProduct() {
+interface Product {
+  id: string
+  name: string
+  description: string | null
+  price: number
+  stock: number | null
+  image: string | null
+  categories?: Array<{
+    category: {
+      id: string
+      name: string
+    }
+  }>
+}
+
+interface CreateProductProps {
+  onProductCreated?: (product: Product) => void
+}
+
+export function CreateProduct({ onProductCreated }: CreateProductProps) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [categories, setCategories] = useState<Category[]>([])
   const [loadingCategories, setLoadingCategories] = useState(false)
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([])
 
   useEffect(() => {
     if (open) {
@@ -54,6 +75,11 @@ export function CreateProduct() {
     setLoading(true)
     const formData = new FormData(form)
 
+    // Thêm các categoryIds đã chọn vào formData
+    selectedCategoryIds.forEach(categoryId => {
+      formData.append('categoryIds', categoryId)
+    })
+
     try {
       const res = await fetch("/api/products", {
         method: "POST",
@@ -69,9 +95,17 @@ export function CreateProduct() {
         throw new Error(error.message || "Failed to create product");
       }
 
+      const result = await res.json()
+      
       // Store form reference before closing dialog
       form.reset();
-      // Then trigger any success callbacks if needed
+      setSelectedCategoryIds([])
+      
+      // Gọi callback nếu có
+      if (onProductCreated && result.success) {
+        onProductCreated(result.data)
+      }
+      
       // Finally close the dialog
       setOpen(false);
     } catch (error) {
@@ -79,6 +113,14 @@ export function CreateProduct() {
     } finally {
       setLoading(false)
     }
+  }
+
+  function toggleCategory(categoryId: string) {
+    setSelectedCategoryIds(prev => 
+      prev.includes(categoryId)
+        ? prev.filter(id => id !== categoryId)
+        : [...prev, categoryId]
+    )
   }
 
   return (
@@ -91,9 +133,9 @@ export function CreateProduct() {
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add Product</DialogTitle>
+          <DialogTitle>Thêm sản phẩm</DialogTitle>
           <DialogDescription>
-            Add a new product to your catalog. Click create when you&apos;re done.
+            Thêm sản phẩm mới vào danh mục. Nhấn tạo khi hoàn thành.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={onSubmit} className="space-y-4">
@@ -118,26 +160,34 @@ export function CreateProduct() {
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="categoryId">Category</Label>
+              <Label>Danh mục (Có thể chọn nhiều)</Label>
               {loadingCategories ? (
                 <div className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm items-center">
-                  Loading categories...
+                  Đang tải danh mục...
                 </div>
               ) : (
-                <select
-                  id="categoryId"
-                  name="categoryId"
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  required
-                  disabled={loadingCategories || categories.length === 0}
-                >
-                  <option value="">Select a category</option>
-                  {categories.map((cat) => (
-                    <option key={cat.id} value={cat.id}>
-                      {cat.name}
-                    </option>
-                  ))}
-                </select>
+                <div className="flex flex-wrap gap-3 p-3 rounded-md border border-input bg-background">
+                  {categories.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Chưa có danh mục nào</p>
+                  ) : (
+                    categories.map((cat) => (
+                      <div key={cat.id} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`category-${cat.id}`}
+                          checked={selectedCategoryIds.includes(cat.id)}
+                          onCheckedChange={() => toggleCategory(cat.id)}
+                          disabled={loading}
+                        />
+                        <Label
+                          htmlFor={`category-${cat.id}`}
+                          className="text-sm font-normal cursor-pointer"
+                        >
+                          {cat.name}
+                        </Label>
+                      </div>
+                    ))
+                  )}
+                </div>
               )}
             </div>
             <div className="grid gap-2">
@@ -153,15 +203,18 @@ export function CreateProduct() {
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="stock">Stock</Label>
+              <Label htmlFor="stock">Tồn kho (Để trống hoặc -1 = không giới hạn)</Label>
               <Input
                 id="stock"
                 name="stock"
                 type="number"
-                placeholder="0"
-                required
+                placeholder="0 hoặc -1 (không giới hạn)"
+                min="-1"
                 disabled={loading}
               />
+              <p className="text-xs text-muted-foreground">
+                Để trống = không theo dõi stock, -1 = không giới hạn, số &gt;= 0 = số lượng cụ thể
+              </p>
             </div>
             <div className="grid gap-2">
               <Label htmlFor="image">Image</Label>

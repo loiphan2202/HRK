@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useAuth } from "@/contexts/auth-context"
 import {
   Table,
   TableBody,
@@ -9,6 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { Badge } from "@/components/ui/badge"
 
 interface OrderProduct {
   id: string
@@ -24,7 +26,9 @@ interface OrderProduct {
 interface Order {
   id: string
   userId: string | null
+  tableNumber: number | null
   total: number
+  status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'CANCELLED'
   createdAt: string
   user: {
     name: string | null
@@ -33,8 +37,9 @@ interface Order {
   orderProducts: OrderProduct[]
 }
 
-async function getOrders(): Promise<Order[]> {
-  const res = await fetch("/api/orders")
+async function getOrders(userId?: string): Promise<Order[]> {
+  const url = userId ? `/api/orders/user/${userId}` : "/api/orders"
+  const res = await fetch(url)
   const data = await res.json()
   
   if (!res.ok || !data.success) {
@@ -46,22 +51,36 @@ async function getOrders(): Promise<Order[]> {
 }
 
 export function OrderList() {
+  const { user } = useAuth()
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    loadOrders()
-  }, [])
+    if (user) {
+      loadOrders()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user])
 
   async function loadOrders() {
     try {
       setLoading(true)
-      const data = await getOrders()
+      const data = await getOrders(user?.id)
       setOrders(data)
     } catch (error) {
       console.error('Failed to load orders:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "PENDING": return "bg-yellow-500"
+      case "PROCESSING": return "bg-blue-500"
+      case "COMPLETED": return "bg-green-500"
+      case "CANCELLED": return "bg-red-500"
+      default: return "bg-gray-500"
     }
   }
 
@@ -113,8 +132,9 @@ export function OrderList() {
         <TableHeader>
           <TableRow>
             <TableHead>Order ID</TableHead>
-            <TableHead>Customer</TableHead>
+            <TableHead>Table</TableHead>
             <TableHead>Products</TableHead>
+            <TableHead>Status</TableHead>
             <TableHead className="text-right">Total</TableHead>
             <TableHead className="text-right">Date</TableHead>
           </TableRow>
@@ -122,30 +142,16 @@ export function OrderList() {
         <TableBody>
           {orders.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={5} className="text-center text-muted-foreground">
+              <TableCell colSpan={6} className="text-center text-muted-foreground">
                 No orders found.
               </TableCell>
             </TableRow>
           ) : (
             orders.map((order) => (
               <TableRow key={order.id}>
-                <TableCell className="font-medium">{order.id}</TableCell>
+                <TableCell className="font-medium">{order.id.slice(-8)}</TableCell>
                 <TableCell>
-                  {order.user ? (
-                    <div className="space-y-1">
-                      <p className="font-medium">{order.user.name || "Guest"}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {order.user.email}
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-1">
-                      <p className="font-medium text-muted-foreground">Guest</p>
-                      <p className="text-sm text-muted-foreground">
-                        No account
-                      </p>
-                    </div>
-                  )}
+                  {order.tableNumber ? `Table ${order.tableNumber}` : "N/A"}
                 </TableCell>
                 <TableCell>
                   <div className="space-y-1">
@@ -160,11 +166,16 @@ export function OrderList() {
                     )}
                   </div>
                 </TableCell>
+                <TableCell>
+                  <Badge className={getStatusColor(order.status)}>
+                    {order.status}
+                  </Badge>
+                </TableCell>
                 <TableCell className="text-right">
                   ${order.total.toFixed(2)}
                 </TableCell>
                 <TableCell className="text-right">
-                  {new Date(order.createdAt).toLocaleDateString()}
+                  {new Date(order.createdAt).toLocaleString()}
                 </TableCell>
               </TableRow>
             ))

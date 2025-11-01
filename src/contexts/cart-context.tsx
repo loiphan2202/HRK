@@ -8,7 +8,7 @@ export interface CartItem {
   price: number
   image: string | null
   quantity: number
-  stock: number
+  stock: number | null // null = no tracking, -1 = unlimited, >=0 = actual stock
 }
 
 interface CartContextType {
@@ -48,9 +48,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
       const existingItem = prevItems.find((item) => item.productId === product.productId)
       
       if (existingItem) {
-        // Check stock limit
+        // Check stock limit (only if stock is tracked and not unlimited)
         const newQuantity = existingItem.quantity + 1
-        if (newQuantity > product.stock) {
+        if (product.stock !== null && product.stock !== -1 && newQuantity > product.stock) {
           return prevItems // Don't add if exceeds stock
         }
         return prevItems.map((item) =>
@@ -77,9 +77,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setItems((prevItems) =>
       prevItems.map((item) => {
         if (item.productId === productId) {
-          // Check stock limit
-          const newQuantity = Math.min(quantity, item.stock)
-          return { ...item, quantity: newQuantity }
+          // Check stock limit (only if stock is tracked and not unlimited)
+          if (item.stock !== null && item.stock !== -1) {
+            const newQuantity = Math.min(quantity, item.stock)
+            return { ...item, quantity: newQuantity }
+          }
+          // No limit if stock is null or -1 (unlimited)
+          return { ...item, quantity }
         }
         return item
       })

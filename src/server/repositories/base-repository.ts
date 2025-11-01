@@ -1,4 +1,4 @@
-import { PrismaClient, Prisma } from '@/generated/prisma/client';
+import { PrismaClient } from '@/generated/prisma/client';
 import { prisma } from '@/lib/prisma';
 
 export interface PrismaModelDelegate<T, CreateInput, UpdateInput> {

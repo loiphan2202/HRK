@@ -28,10 +28,11 @@ export async function POST() {
       message: 'Admin account created successfully',
       data: { id: admin.id, email: admin.email }
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Failed to init admin:', error);
+    const message = error instanceof Error ? error.message : 'Failed to create admin account';
     return NextResponse.json(
-      { success: false, error: error.message || 'Failed to create admin account' },
+      { success: false, error: message },
       { status: 500 }
     );
   }
@@ -46,9 +47,10 @@ export async function GET() {
       success: true, 
       exists: !!existingAdmin
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Failed to check admin';
     return NextResponse.json(
-      { success: false, error: error.message },
+      { success: false, error: message },
       { status: 500 }
     );
   }

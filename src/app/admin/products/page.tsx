@@ -21,7 +21,7 @@ export default function AdminProductsPage() {
   if (isLoading || !isAdmin()) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <p className="text-muted-foreground">Loading...</p>
+        <p className="text-muted-foreground">Đang tải...</p>
       </div>
     )
   }
@@ -30,12 +30,15 @@ export default function AdminProductsPage() {
     <div className="flex flex-col space-y-8 w-full">
       <div className="flex items-center justify-between">
         <div className="space-y-1">
-          <h1 className="text-4xl font-bold tracking-tight">Products Management</h1>
+          <h1 className="text-4xl font-bold tracking-tight">Quản lý sản phẩm</h1>
           <p className="text-muted-foreground">
-            Manage your product catalog, including inventory and pricing.
+            Quản lý danh mục sản phẩm của bạn, bao gồm tồn kho và giá cả.
           </p>
         </div>
-        <CreateProduct />
+        <CreateProduct onProductCreated={(product) => {
+          // Trigger reload của ProductList
+          window.dispatchEvent(new CustomEvent('product-created', { detail: product }))
+        }} />
       </div>
       <Suspense fallback={<ProductListSkeleton />}>
         <ProductList />

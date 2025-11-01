@@ -34,7 +34,7 @@ datasource db {
     name      String   @unique
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
-    products  Product[]
+    products  ProductCategory[]
   }
 
   model Product {
@@ -43,10 +43,22 @@ datasource db {
     description String?
     image       String?  // relative public path to product image, e.g. /uploads/products/xxx.jpg
     price       Float
-    stock       Int
-    category    Category @relation(fields: [categoryId], references: [id])
-    categoryId  String   @db.ObjectId
+    stock       Int?     // null = no stock tracking, -1 = unlimited, >=0 = actual stock
+    categories  ProductCategory[]
     orderProducts OrderProduct[]
+  }
+
+  model ProductCategory {
+    id         String   @id @default(auto()) @map("_id") @db.ObjectId
+    product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+    productId  String   @db.ObjectId
+    category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+    categoryId String   @db.ObjectId
+    createdAt  DateTime @default(now())
+
+    @@unique([productId, categoryId])
+    @@index([productId])
+    @@index([categoryId])
   }
 
   enum OrderStatus {
@@ -84,7 +96,7 @@ datasource db {
     total      Float
     status     OrderStatus @default(PENDING)
     createdAt  DateTime    @default(now())
-    updatedAt  DateTime    @updatedAt
+    updatedAt  DateTime?   @updatedAt // Allow null for existing records
   }
 
   model OrderProduct {

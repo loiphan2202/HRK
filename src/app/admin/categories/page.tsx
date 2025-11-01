@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { useAuth } from "@/contexts/auth-context"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
@@ -106,15 +106,17 @@ export default function AdminCategoriesPage() {
 
       if (!res.ok) {
         const error = await res.json()
-        throw new Error(error.error || "Failed to create category")
+        const errorMessage = error.error?.message || error.error || error.message || "Failed to create category"
+        throw new Error(errorMessage)
       }
 
       setCategoryName("")
       setDialogOpen(false)
       await loadCategories()
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Failed to create category:", error)
-      alert(error.message || "Failed to create category")
+      const message = error instanceof Error ? error.message : "Failed to create category"
+      alert(message)
     }
   }
 
@@ -133,14 +135,16 @@ export default function AdminCategoriesPage() {
 
       if (!res.ok) {
         const error = await res.json()
-        throw new Error(error.error || "Failed to update category")
+        const errorMessage = error.error?.message || error.error || error.message || "Failed to update category"
+        throw new Error(errorMessage)
       }
 
       setEditDialog({ open: false, category: null })
       await loadCategories()
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Failed to update category:", error)
-      alert(error.message || "Failed to update category")
+      const message = error instanceof Error ? error.message : "Failed to update category"
+      alert(message)
     }
   }
 
@@ -152,14 +156,16 @@ export default function AdminCategoriesPage() {
 
       if (!res.ok) {
         const error = await res.json()
-        throw new Error(error.error || "Failed to delete category")
+        const errorMessage = error.error?.message || error.error || error.message || "Failed to delete category"
+        throw new Error(errorMessage)
       }
 
       setDeleteDialog({ open: false, categoryId: null })
       await loadCategories()
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Failed to delete category:", error)
-      alert(error.message || "Failed to delete category")
+      const message = error instanceof Error ? error.message : "Failed to delete category"
+      alert(message)
     }
   }
 

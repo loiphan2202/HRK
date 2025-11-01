@@ -1,12 +1,12 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { AlertCircle, CheckCircle2 } from "lucide-react"
 
-export default function CheckInPage() {
+function CheckInContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const token = searchParams.get("token")
@@ -48,8 +48,9 @@ export default function CheckInPage() {
         tableNumber: data.data.table.number,
         token: token,
       }))
-    } catch (err: any) {
-      setError(err.message || "Failed to check in")
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to check in"
+      setError(message)
     } finally {
       setLoading(false)
     }
@@ -116,5 +117,21 @@ export default function CheckInPage() {
   }
 
   return null
+}
+
+export default function CheckInPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Card className="w-full max-w-md">
+          <CardContent className="p-6">
+            <p className="text-center text-muted-foreground">Loading...</p>
+          </CardContent>
+        </Card>
+      </div>
+    }>
+      <CheckInContent />
+    </Suspense>
+  )
 }
 

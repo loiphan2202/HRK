@@ -10,7 +10,8 @@ const VALID_MIME_TYPES = new Set([
   'image/webp'
 ]);
 
-// Magic numbers for different image formats
+// Magic numbers for different image formats (currently unused, reserved for future validation)
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const MAGIC_NUMBERS = {
   jpeg: [0xFF, 0xD8, 0xFF],
   png: [0x89, 0x50, 0x4E, 0x47],

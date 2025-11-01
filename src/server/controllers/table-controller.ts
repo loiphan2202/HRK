@@ -71,7 +71,12 @@ export class TableController {
 
   async generateQrCode(req: Request, id: string) {
     try {
-      const table = await this.service.generateQrCode(id);
+      // Get base URL from request headers
+      const protocol = req.headers.get('x-forwarded-proto') || 'http';
+      const host = req.headers.get('host') || req.headers.get('x-forwarded-host') || 'localhost:3000';
+      const baseUrl = `${protocol}://${host}`;
+      
+      const table = await this.service.generateQrCode(id, baseUrl);
 
       return NextResponse.json({ success: true, data: table });
     } catch (error: unknown) {

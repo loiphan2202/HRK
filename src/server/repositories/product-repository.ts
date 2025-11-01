@@ -5,11 +5,58 @@ import { ProductCreate, ProductUpdate } from '../schemas/product-schema';
 export class ProductRepository extends BaseRepository<Product, ProductCreate, ProductUpdate> {
   protected getDelegate(): PrismaModelDelegate<Product, ProductCreate, ProductUpdate> {
     return {
-      findUnique: (args) => this.prisma.product.findUnique(args),
-      findMany: (args) => this.prisma.product.findMany(args),
-      create: (args) => this.prisma.product.create(args),
-      update: (args) => this.prisma.product.update(args),
-      delete: (args) => this.prisma.product.delete(args),
+      findUnique: (args) => this.prisma.product.findUnique({
+        ...args,
+        include: { 
+          categories: {
+            include: {
+              category: true,
+            },
+          },
+        },
+      }),
+      findMany: (args) => {
+        return this.prisma.product.findMany({
+          ...args,
+          include: { 
+            categories: {
+              include: {
+                category: true,
+              },
+            },
+          },
+        });
+      },
+      create: (args) => this.prisma.product.create({
+        ...args,
+        include: { 
+          categories: {
+            include: {
+              category: true,
+            },
+          },
+        },
+      }),
+      update: (args) => this.prisma.product.update({
+        ...args,
+        include: { 
+          categories: {
+            include: {
+              category: true,
+            },
+          },
+        },
+      }),
+      delete: (args) => this.prisma.product.delete({
+        ...args,
+        include: { 
+          categories: {
+            include: {
+              category: true,
+            },
+          },
+        },
+      }),
     };
   }
 

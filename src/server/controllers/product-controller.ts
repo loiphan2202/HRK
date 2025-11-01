@@ -11,18 +11,39 @@ export class ProductController {
     this.service = new ProductService();
   }
 
-  private async processFormData(form: FormData): Promise<Record<string, string | number>> {
-    const data: Record<string, string | number> = {};
+  private async processFormData(form: FormData): Promise<Record<string, string | number | null | string[]>> {
+    const data: Record<string, string | number | null | string[]> = {};
     for (const key of Array.from(form.keys())) {
-      const value = form.get(key);
-      if (typeof value === 'string') {
-        if (key === 'price' || key === 'stock') {
-          const numValue = Number(value);
-          if (!Number.isNaN(numValue)) {
-            data[key] = numValue;
+      if (key === 'categoryIds') {
+        // Xử lý categoryIds: lấy tất cả giá trị với key này
+        const values = form.getAll(key);
+        const categoryIds = values
+          .filter(v => typeof v === 'string' && v.trim() !== '')
+          .map(v => v as string);
+        data[key] = categoryIds;
+      } else {
+        const value = form.get(key);
+        if (typeof value === 'string') {
+          if (key === 'price') {
+            const numValue = Number(value);
+            if (!Number.isNaN(numValue)) {
+              data[key] = numValue;
+            }
+          } else if (key === 'stock') {
+            // Xử lý stock: empty string -> null, -1 -> -1, số khác -> số
+            if (value === '' || value === 'null') {
+              data[key] = null;
+            } else {
+              const numValue = Number(value);
+              if (!Number.isNaN(numValue)) {
+                data[key] = numValue;
+              } else {
+                data[key] = null;
+              }
+            }
+          } else {
+            data[key] = value;
           }
-        } else {
-          data[key] = value;
         }
       }
     }
@@ -133,7 +154,7 @@ export class ProductController {
     }
   }
 
-  async getAll(req: Request) {
+  async getAll() {
     try {
       const products = await this.service.findAll();
       return NextResponse.json({ success: true, data: products });
@@ -142,3 +163,4 @@ export class ProductController {
     }
   }
 }
+

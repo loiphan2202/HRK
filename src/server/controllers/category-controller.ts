@@ -31,7 +31,7 @@ export class CategoryController {
     }
   }
 
-  async getAll(req: Request) {
+  async getAll() {
     try {
       const categories = await this.service.findAll();
       return NextResponse.json({ success: true, data: categories });

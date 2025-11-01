@@ -5,17 +5,26 @@ import { ProductCard } from "@/components/products/product-card"
 import { Input } from "@/components/ui/input"
 import { Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
-
-type Category = 'APPETIZER' | 'MAIN_COURSE' | 'DESSERT' | 'BEVERAGE' | 'SOUP' | 'SALAD'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 interface Product {
   id: string
   name: string
   description: string | null
   price: number
-  stock: number
+  stock: number | null
   image: string | null
-  category?: Category
+  categories?: Array<{
+    category: {
+      id: string
+      name: string
+    }
+  }>
+}
+
+interface Category {
+  id: string
+  name: string
 }
 
 async function getProducts(): Promise<Product[]> {
@@ -24,28 +33,39 @@ async function getProducts(): Promise<Product[]> {
   return data.data || []
 }
 
-const categories: Category[] = ['APPETIZER', 'MAIN_COURSE', 'DESSERT', 'BEVERAGE', 'SOUP', 'SALAD']
+async function getCategories(): Promise<Category[]> {
+  const res = await fetch("/api/categories")
+  const data = await res.json()
+  return data.data || []
+}
 
 export default function Home() {
   const [products, setProducts] = useState<Product[]>([])
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
   const [searchQuery, setSearchQuery] = useState("")
-  const [selectedCategory, setSelectedCategory] = useState<Category | "ALL">("ALL")
+  const [selectedCategory, setSelectedCategory] = useState<string>("ALL")
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     loadProducts()
+    loadCategories()
   }, [])
 
   useEffect(() => {
     let filtered = products
     
-    // Filter by category
+    // Lọc theo danh mục
     if (selectedCategory !== "ALL") {
-      filtered = filtered.filter((product) => product.category === selectedCategory)
+      filtered = filtered.filter((product) => {
+        if (selectedCategory === "NO_CATEGORY") {
+          return !product.categories || product.categories.length === 0
+        }
+        return product.categories?.some(pc => pc.category.id === selectedCategory) || false
+      })
     }
     
-    // Filter by search query
+    // Lọc theo từ khóa tìm kiếm
     if (searchQuery.trim() !== "") {
       filtered = filtered.filter((product) =>
         product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -69,26 +89,51 @@ export default function Home() {
     }
   }
 
+  async function loadCategories() {
+    try {
+      const data = await getCategories()
+      setCategories(data)
+    } catch (error) {
+      console.error("Failed to load categories:", error)
+    }
+  }
+
   return (
     <div className="flex flex-col space-y-8 w-full">
       <div className="flex flex-col items-center space-y-4">
-        <h1 className="text-4xl font-bold tracking-tight">Shop</h1>
+        <h1 className="text-4xl font-bold tracking-tight">Cửa Hàng</h1>
         <p className="text-muted-foreground text-center max-w-2xl">
-          Browse our collection of products. Find what you're looking for with our search feature.
+          Duyệt qua bộ sưu tập sản phẩm của chúng tôi. Tìm kiếm những gì bạn đang tìm với tính năng tìm kiếm.
         </p>
       </div>
 
       <div className="flex flex-col gap-4">
-        <div className="flex flex-col sm:flex-row gap-4 items-center">
-          <div className="relative flex-1 w-full max-w-md">
+        <div className="flex flex-col sm:flex-row gap-3 items-center w-full">
+          <div className="relative flex-1 w-full min-w-0">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               type="text"
-              placeholder="Search products..."
+              placeholder="Tìm kiếm sản phẩm..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10"
             />
+          </div>
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+              <SelectTrigger id="category-filter" className="w-full sm:w-[180px]">
+                <SelectValue placeholder="Tất cả danh mục" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">Tất cả danh mục</SelectItem>
+                <SelectItem value="NO_CATEGORY">Không có danh mục</SelectItem>
+                {categories.map((cat) => (
+                  <SelectItem key={cat.id} value={cat.id}>
+                    {cat.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           {(searchQuery || selectedCategory !== "ALL") && (
             <Button
@@ -97,30 +142,11 @@ export default function Home() {
                 setSearchQuery("")
                 setSelectedCategory("ALL")
               }}
+              className="whitespace-nowrap"
             >
-              Clear Filters
+              Xóa bộ lọc
             </Button>
           )}
-        </div>
-        
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant={selectedCategory === "ALL" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setSelectedCategory("ALL")}
-          >
-            All
-          </Button>
-          {categories.map((cat) => (
-            <Button
-              key={cat}
-              variant={selectedCategory === cat ? "default" : "outline"}
-              size="sm"
-              onClick={() => setSelectedCategory(cat)}
-            >
-              {cat.replace('_', ' ')}
-            </Button>
-          ))}
         </div>
       </div>
 
@@ -135,17 +161,17 @@ export default function Home() {
         </div>
       ) : filteredProducts.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12 text-center">
-          <p className="text-lg font-semibold mb-2">No products found</p>
+          <p className="text-lg font-semibold mb-2">Không tìm thấy sản phẩm</p>
           <p className="text-muted-foreground">
             {searchQuery
-              ? "Try adjusting your search terms"
-              : "No products available at the moment"}
+              ? "Thử điều chỉnh từ khóa tìm kiếm"
+              : "Hiện tại không có sản phẩm nào"}
           </p>
         </div>
       ) : (
         <>
           <p className="text-sm text-muted-foreground">
-            Found {filteredProducts.length} product{filteredProducts.length !== 1 ? "s" : ""}
+            Tìm thấy {filteredProducts.length} sản phẩm
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {filteredProducts.map((product) => (
@@ -157,6 +183,7 @@ export default function Home() {
                 price={product.price}
                 image={product.image}
                 stock={product.stock}
+                categories={product.categories}
               />
             ))}
           </div>

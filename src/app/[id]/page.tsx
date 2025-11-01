@@ -10,14 +10,21 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { ShoppingCart, ArrowLeft, Plus, Minus } from "lucide-react"
 import { useCart } from "@/contexts/cart-context"
+import { useAuth } from "@/contexts/auth-context"
 
 interface Product {
   id: string
   name: string
   description: string | null
   price: number
-  stock: number
+  stock: number | null
   image: string | null
+  categories?: Array<{
+    category: {
+      id: string
+      name: string
+    }
+  }>
 }
 
 async function getProduct(id: string): Promise<Product | null> {
@@ -36,6 +43,7 @@ export default function ProductDetailPage() {
   const params = useParams()
   const router = useRouter()
   const { addToCart } = useCart()
+  const { isAdmin } = useAuth()
   const [product, setProduct] = useState<Product | null>(null)
   const [loading, setLoading] = useState(true)
   const [quantity, setQuantity] = useState(1)
@@ -60,7 +68,11 @@ export default function ProductDetailPage() {
   }
 
   const handleAddToCart = () => {
-    if (!product || product.stock === 0) return
+    if (!product) return
+    
+    // Chỉ kiểm tra stock nếu có tracking (stock !== null && stock >= 0)
+    const hasStock = product.stock === null || product.stock === -1 || product.stock > 0
+    if (!hasStock) return
 
     setIsAdding(true)
     for (let i = 0; i < quantity; i++) {
@@ -69,10 +81,24 @@ export default function ProductDetailPage() {
         name: product.name,
         price: product.price,
         image: product.image,
-        stock: product.stock,
+        stock: product.stock || 0,
       })
     }
     setTimeout(() => setIsAdding(false), 300)
+  }
+
+  // Tính max quantity có thể chọn
+  const getMaxQuantity = () => {
+    if (!product) return 1
+    if (product.stock === null || product.stock === -1) return 99 // Không giới hạn
+    return product.stock
+  }
+
+  const canAddToCart = () => {
+    if (!product) return false
+    if (product.stock === null) return true // Không theo dõi
+    if (product.stock === -1) return true // Không giới hạn
+    return product.stock > 0
   }
 
   if (loading) {
@@ -96,11 +122,11 @@ export default function ProductDetailPage() {
   if (!product) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
-        <h2 className="text-2xl font-bold">Product not found</h2>
+        <h2 className="text-2xl font-bold">Không tìm thấy sản phẩm</h2>
         <Link href="/">
           <Button>
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Shop
+            Về cửa hàng
           </Button>
         </Link>
       </div>
@@ -115,7 +141,7 @@ export default function ProductDetailPage() {
         className="w-fit"
       >
         <ArrowLeft className="mr-2 h-4 w-4" />
-        Back
+        Quay lại
       </Button>
 
       <div className="grid gap-8 md:grid-cols-2">
@@ -131,22 +157,33 @@ export default function ProductDetailPage() {
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-muted text-muted-foreground">
-              No Image Available
+              Không có hình ảnh
             </div>
           )}
         </div>
 
         <div className="flex flex-col space-y-6">
           <div>
-            <h1 className="text-4xl font-bold mb-2">{product.name}</h1>
+            <div className="flex items-center gap-3 mb-2">
+              <h1 className="text-4xl font-bold">{product.name}</h1>
+              {product.categories && product.categories.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {product.categories.map((pc) => (
+                    <span key={pc.category.id} className="px-3 py-1 text-sm font-medium bg-secondary text-secondary-foreground rounded-full">
+                      {pc.category.name}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
             <p className="text-3xl font-bold text-primary">
-              ${product.price.toFixed(2)}
+              {product.price.toLocaleString('vi-VN')}đ
             </p>
           </div>
 
           {product.description && (
             <div>
-              <h2 className="text-xl font-semibold mb-2">Description</h2>
+              <h2 className="text-xl font-semibold mb-2">Mô tả</h2>
               <p className="text-muted-foreground whitespace-pre-wrap">
                 {product.description}
               </p>
@@ -154,17 +191,27 @@ export default function ProductDetailPage() {
           )}
 
           <div className="flex items-center gap-4">
-            <span className="text-sm font-medium">Stock:</span>
-            <span className={`text-sm ${product.stock > 0 ? "text-green-600" : "text-red-600"}`}>
-              {product.stock > 0 ? `${product.stock} available` : "Out of stock"}
+            <span className="text-sm font-medium">Tồn kho:</span>
+            <span className={`text-sm ${
+              product.stock === null || product.stock === -1 || (product.stock !== null && product.stock > 0) 
+                ? "text-green-600" 
+                : "text-red-600"
+            }`}>
+              {product.stock === null 
+                ? "Không theo dõi" 
+                : product.stock === -1 
+                ? "Không giới hạn" 
+                : product.stock > 0 
+                ? `Còn ${product.stock} sản phẩm` 
+                : "Hết hàng"}
             </span>
           </div>
 
-          {product.stock > 0 && (
+          {!isAdmin() && canAddToCart() && (
             <Card className="border-2">
               <CardContent className="p-6 space-y-4">
                 <div className="flex items-center gap-4">
-                  <span className="text-sm font-medium">Quantity:</span>
+                  <span className="text-sm font-medium">Số lượng:</span>
                   <div className="flex items-center gap-2 border rounded-md">
                     <Button
                       variant="ghost"
@@ -179,17 +226,17 @@ export default function ProductDetailPage() {
                       value={quantity}
                       onChange={(e) => {
                         const value = parseInt(e.target.value) || 1
-                        setQuantity(Math.max(1, Math.min(value, product.stock)))
+                        setQuantity(Math.max(1, Math.min(value, getMaxQuantity())))
                       }}
                       className="w-20 text-center border-0"
                       min="1"
-                      max={product.stock}
+                      max={getMaxQuantity()}
                     />
                     <Button
                       variant="ghost"
                       size="icon"
                       className="h-10 w-10"
-                      onClick={() => setQuantity(Math.min(product.stock, quantity + 1))}
+                      onClick={() => setQuantity(Math.min(getMaxQuantity(), quantity + 1))}
                     >
                       <Plus className="h-4 w-4" />
                     </Button>
@@ -202,7 +249,7 @@ export default function ProductDetailPage() {
                   disabled={isAdding}
                 >
                   <ShoppingCart className={`mr-2 h-5 w-5 transition-transform ${isAdding ? 'scale-150' : ''}`} />
-                  {isAdding ? "Added!" : `Add to Cart (${quantity})`}
+                  {isAdding ? "Đã thêm!" : `Thêm vào giỏ (${quantity})`}
                 </Button>
               </CardContent>
             </Card>
