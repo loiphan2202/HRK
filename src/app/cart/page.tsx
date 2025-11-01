@@ -228,24 +228,25 @@ export default function CartPage() {
   }
 
   return (
-    <div className="flex flex-col space-y-8 w-full">
-      <div className="flex items-center justify-between">
-        <h1 className="text-4xl font-bold tracking-tight">Giỏ hàng</h1>
-        <Link href="/">
-          <Button variant="outline">
+    <div className="flex flex-col space-y-6 sm:space-y-8 w-full px-4 sm:px-6 lg:px-0">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">Giỏ hàng</h1>
+        <Link href="/" className="w-full sm:w-auto">
+          <Button variant="outline" className="w-full sm:w-auto">
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Tiếp tục mua sắm
+            <span className="hidden sm:inline">Tiếp tục mua sắm</span>
+            <span className="sm:hidden">Quay lại</span>
           </Button>
         </Link>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2 space-y-4">
+      <div className="grid gap-4 sm:gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2 space-y-3 sm:space-y-4">
           {items.map((item) => (
             <Card key={item.productId} className="border-2">
-              <CardContent className="p-4">
-                <div className="flex gap-4">
-                  <div className="relative w-24 h-24 flex-shrink-0 rounded-md overflow-hidden border">
+              <CardContent className="p-3 sm:p-4">
+                <div className="flex gap-3 sm:gap-4">
+                  <div className="relative w-20 h-20 sm:w-24 sm:h-24 flex-shrink-0 rounded-md overflow-hidden border">
                     {item.image ? (
                       <Image
                         src={item.image}
@@ -261,18 +262,18 @@ export default function CartPage() {
                     )}
                   </div>
                   <div className="flex-1 flex flex-col justify-between min-w-0">
-                    <div>
-                      <Link href={`/shop/${item.productId}`}>
-                        <h3 className="font-semibold text-lg hover:text-primary transition-colors line-clamp-2">
+                    <div className="min-w-0">
+                      <Link href={`/${item.productId}`}>
+                        <h3 className="font-semibold text-base sm:text-lg hover:text-primary transition-colors line-clamp-2">
                           {item.name}
                         </h3>
                       </Link>
-                      <p className="text-lg font-bold text-primary mt-1">
+                      <p className="text-base sm:text-lg font-bold text-primary mt-1">
                         {item.price.toLocaleString('vi-VN')}đ
                       </p>
                     </div>
-                    <div className="flex items-center justify-between mt-4">
-                      <div className="flex items-center gap-2 border rounded-md">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mt-3 sm:mt-4">
+                      <div className="flex items-center gap-1 sm:gap-2 border rounded-md">
                         <Button
                           variant="ghost"
                           size="icon"
@@ -319,9 +320,9 @@ export default function CartPage() {
         </div>
 
         <div className="lg:col-span-1">
-          <Card className="sticky top-4 border-2">
-            <CardHeader>
-              <CardTitle>Tóm tắt đơn hàng</CardTitle>
+          <Card className="lg:sticky lg:top-4 border-2">
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="text-lg sm:text-xl">Tóm tắt đơn hàng</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
@@ -335,7 +336,7 @@ export default function CartPage() {
                 ) : availableTables.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-4">Không có bàn nào</p>
                 ) : (
-                  <div className="grid grid-cols-7 gap-1.5 max-h-60 overflow-y-auto p-1">
+                  <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-7 gap-1.5 max-h-60 overflow-y-auto p-1">
                     {availableTables.map((table) => {
                       const isAvailable = table.status === 'AVAILABLE'
                       const isOccupied = table.status === 'OCCUPIED'
@@ -425,22 +426,22 @@ export default function CartPage() {
                     })}
                   </div>
                 )}
-                <p className="text-xs text-muted-foreground flex flex-wrap gap-x-2 gap-y-1">
+                <p className="text-[10px] sm:text-xs text-muted-foreground flex flex-wrap gap-x-2 gap-y-1">
                   <span className="flex items-center gap-1">
-                    <span className="inline-block w-3 h-3 bg-green-500 rounded"></span>
-                    Trống
+                    <span className="inline-block w-2.5 h-2.5 sm:w-3 sm:h-3 bg-green-500 rounded"></span>
+                    <span className="hidden sm:inline">Trống</span>
                   </span>
                   <span className="flex items-center gap-1">
-                    <span className="inline-block w-3 h-3 bg-blue-500 rounded"></span>
-                    Đã check-in
+                    <span className="inline-block w-2.5 h-2.5 sm:w-3 sm:h-3 bg-blue-500 rounded"></span>
+                    <span className="hidden sm:inline">Đã check-in</span>
                   </span>
                   <span className="flex items-center gap-1">
-                    <span className="inline-block w-3 h-3 bg-red-500 rounded"></span>
-                    Đang dùng
+                    <span className="inline-block w-2.5 h-2.5 sm:w-3 sm:h-3 bg-red-500 rounded"></span>
+                    <span className="hidden sm:inline">Đang dùng</span>
                   </span>
                   <span className="flex items-center gap-1">
-                    <span className="inline-block w-3 h-3 bg-yellow-500 rounded"></span>
-                    Đã đặt
+                    <span className="inline-block w-2.5 h-2.5 sm:w-3 sm:h-3 bg-yellow-500 rounded"></span>
+                    <span className="hidden sm:inline">Đã đặt</span>
                   </span>
                 </p>
               </div>

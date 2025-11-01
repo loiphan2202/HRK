@@ -99,10 +99,10 @@ export default function Home() {
   }
 
   return (
-    <div className="flex flex-col space-y-8 w-full">
-      <div className="flex flex-col items-center space-y-4">
-        <h1 className="text-4xl font-bold tracking-tight">Cửa Hàng</h1>
-        <p className="text-muted-foreground text-center max-w-2xl">
+    <div className="flex flex-col space-y-6 sm:space-y-8 w-full px-4 sm:px-6 lg:px-0">
+      <div className="flex flex-col items-center space-y-3 sm:space-y-4 text-center">
+        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight">Cửa Hàng</h1>
+        <p className="text-sm sm:text-base text-muted-foreground max-w-2xl px-4">
           Chào mừng quý khách tới nhà hàng của chúng tôi!
         </p>
       </div>
@@ -151,18 +151,18 @@ export default function Home() {
       </div>
 
       {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
           {Array.from({ length: 8 }).map((_, i) => (
             <div
               key={i}
-              className="h-96 bg-muted animate-pulse rounded-lg border-2"
+              className="h-[400px] sm:h-[450px] bg-muted animate-pulse rounded-lg border-2"
             />
           ))}
         </div>
       ) : filteredProducts.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-12 text-center">
-          <p className="text-lg font-semibold mb-2">Không tìm thấy sản phẩm</p>
-          <p className="text-muted-foreground">
+        <div className="flex flex-col items-center justify-center py-12 sm:py-16 text-center px-4">
+          <p className="text-base sm:text-lg font-semibold mb-2">Không tìm thấy sản phẩm</p>
+          <p className="text-sm sm:text-base text-muted-foreground">
             {searchQuery
               ? "Thử điều chỉnh từ khóa tìm kiếm"
               : "Hiện tại không có sản phẩm nào"}
@@ -170,10 +170,10 @@ export default function Home() {
         </div>
       ) : (
         <>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-xs sm:text-sm text-muted-foreground px-2">
             Tìm thấy {filteredProducts.length} sản phẩm
           </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
             {filteredProducts.map((product) => (
               <ProductCard
                 key={product.id}

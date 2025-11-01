@@ -51,11 +51,11 @@ export function ProductCard({ id, name, description, price, image, stock, catego
 
   return (
     <Link href={`/${id}`}>
-      <Card className="group relative overflow-hidden border-2 transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl cursor-pointer bg-card hover:border-primary/50">
+      <Card className="group relative p-0 overflow-hidden border-2 transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl cursor-pointer bg-card hover:border-primary/50 h-full flex flex-col">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-primary/3 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-0" />
         
-        <CardHeader className="p-0 relative z-10">
-          <div className="relative w-full h-64 overflow-hidden bg-gradient-to-br from-muted to-muted/50">
+        <CardHeader className="p-0 relative z-10 flex-shrink-0">
+          <div className="relative w-full h-48 sm:h-56 md:h-64 overflow-hidden bg-gradient-to-br from-muted to-muted/50">
             {image ? (
               <Image
                 src={image}
@@ -89,24 +89,24 @@ export function ProductCard({ id, name, description, price, image, stock, catego
           </div>
         </CardHeader>
 
-        <CardContent className="p-5 space-y-3 relative z-10 bg-card">
-          <div className="space-y-1">
-            <h3 className="font-bold text-xl line-clamp-2 group-hover:text-primary transition-colors min-h-[3rem]">
+        <CardContent className="p-4 sm:p-5 space-y-3 relative z-10 bg-card flex-grow flex flex-col">
+          <div className="space-y-1 flex-grow">
+            <h3 className="font-bold text-lg sm:text-xl line-clamp-2 group-hover:text-primary transition-colors min-h-[3rem]">
               {name}
             </h3>
             {description && (
-              <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">
+              <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2 leading-relaxed mt-1">
                 {description}
               </p>
             )}
           </div>
           
-          <div className="flex items-center justify-between pt-3 border-t">
+          <div className="flex items-center justify-between pt-3 border-t mt-auto">
             <div className="flex flex-col">
-              <span className="text-2xl font-bold text-primary">
+              <span className="text-lg sm:text-xl md:text-2xl font-bold text-primary">
                 {price.toLocaleString('vi-VN')}đ
               </span>
-              <span className="text-xs text-muted-foreground mt-1">
+              <span className="text-[10px] sm:text-xs text-muted-foreground mt-1">
                 {stock !== null && stock !== -1 
                   ? (stock > 0 ? `Còn ${stock} sản phẩm` : "Hết hàng") 
                   : stock === -1 
@@ -118,15 +118,20 @@ export function ProductCard({ id, name, description, price, image, stock, catego
         </CardContent>
 
         {!isAdmin() && (
-          <CardFooter className="p-5 pt-0 relative z-10 bg-card">
+          <CardFooter className="p-4 sm:p-5 pt-0 relative z-10 bg-card flex-shrink-0">
             <Button
               onClick={handleAddToCart}
               disabled={(stock !== null && stock !== -1 && stock === 0) || isAdding}
-              className="w-full group/btn bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg hover:shadow-xl transition-all"
+              className="w-full group/btn bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg hover:shadow-xl transition-all text-sm sm:text-base"
               size="lg"
             >
               <ShoppingCart className={`mr-2 h-4 w-4 transition-transform ${isAdding ? 'scale-150 rotate-12' : 'group-hover/btn:scale-110 group-hover/btn:-rotate-12'}`} />
-              {isAdding ? "Đã thêm! ✓" : (stock !== null && stock !== -1 && stock === 0) ? "Hết hàng" : "Thêm vào giỏ"}
+              <span className="hidden sm:inline">
+                {isAdding ? "Đã thêm! ✓" : (stock !== null && stock !== -1 && stock === 0) ? "Hết hàng" : "Thêm vào giỏ"}
+              </span>
+              <span className="sm:hidden">
+                {isAdding ? "Đã thêm!" : (stock !== null && stock !== -1 && stock === 0) ? "Hết" : "Thêm"}
+              </span>
             </Button>
           </CardFooter>
         )}

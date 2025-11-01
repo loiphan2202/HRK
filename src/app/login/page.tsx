@@ -51,16 +51,16 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex items-center justify-center min-h-[calc(100vh-200px)] w-full">
+    <div className="flex items-center justify-center min-h-[calc(100vh-200px)] w-full px-4 py-8">
       <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle className="text-2xl">Đăng nhập</CardTitle>
-          <CardDescription>
+        <CardHeader className="space-y-1 px-4 sm:px-6 pt-6 sm:pt-8">
+          <CardTitle className="text-2xl sm:text-3xl">Đăng nhập</CardTitle>
+          <CardDescription className="text-sm sm:text-base">
             Nhập email và mật khẩu để truy cập tài khoản của bạn
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-4 px-4 sm:px-6">
             {error && (
               <div className="p-3 text-sm text-red-600 bg-red-50 dark:bg-red-950 dark:text-red-400 rounded-md">
                 {error}
@@ -92,7 +92,7 @@ export default function LoginPage() {
               />
             </div>
           </CardContent>
-          <CardFooter className="flex flex-col space-y-4 mt-6">
+          <CardFooter className="flex flex-col space-y-4 mt-6 px-4 sm:px-6 pb-6 sm:pb-8">
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? (
                 <>

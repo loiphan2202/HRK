@@ -444,17 +444,17 @@ export default function AdminTablesPage() {
   }
 
   return (
-    <div className="flex flex-col space-y-8 w-full">
-      <div className="flex items-center justify-between">
+    <div className="flex flex-col space-y-6 sm:space-y-8 w-full px-4 sm:px-6 lg:px-0">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-4xl font-bold tracking-tight">Quản lý bàn</h1>
-          <p className="text-muted-foreground mt-2">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight">Quản lý bàn</h1>
+          <p className="text-sm sm:text-base text-muted-foreground mt-2">
             Quản lý bàn nhà hàng và tạo mã QR
           </p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
-            <Button>
+            <Button className="w-full sm:w-auto">
               <Plus className="mr-2 h-4 w-4" />
               Thêm bàn
             </Button>
@@ -499,8 +499,10 @@ export default function AdminTablesPage() {
         </Card>
       ) : (
         <Card>
-          <Table>
-            <TableHeader>
+          <div className="overflow-x-auto -mx-4 sm:mx-0">
+            <div className="inline-block min-w-full align-middle px-4 sm:px-0">
+              <Table>
+                <TableHeader>
               <TableRow>
                 <TableHead>Số bàn</TableHead>
                 <TableHead>Trạng thái</TableHead>
@@ -587,6 +589,8 @@ export default function AdminTablesPage() {
               )}
             </TableBody>
           </Table>
+          </div>
+          </div>
         </Card>
       )}
 

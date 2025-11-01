@@ -463,15 +463,15 @@ export default function AdminOrdersPage() {
   }
 
   return (
-    <div className="flex flex-col space-y-8 w-full">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-4xl font-bold tracking-tight">Quản lý đơn hàng</h1>
-          <p className="text-muted-foreground mt-2">
-            Xem và quản lý tất cả đơn hàng của nhà hàng
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
+    <div className="flex flex-col space-y-6 sm:space-y-8 w-full px-4 sm:px-6 lg:px-0">
+      <div>
+        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight">Quản lý đơn hàng</h1>
+        <p className="text-sm sm:text-base text-muted-foreground mt-2">
+          Xem và quản lý tất cả đơn hàng của nhà hàng
+        </p>
+      </div>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-end gap-3">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="Lọc theo trạng thái" />
@@ -605,8 +605,10 @@ export default function AdminOrdersPage() {
         </Card>
       ) : (
         <Card>
-          <Table>
-            <TableHeader>
+          <div className="overflow-x-auto -mx-4 sm:mx-0">
+            <div className="inline-block min-w-full align-middle px-4 sm:px-0">
+              <Table>
+                <TableHeader>
               <TableRow>
                 <TableHead>Mã đơn</TableHead>
                 <TableHead>Khách hàng</TableHead>
@@ -723,10 +725,12 @@ export default function AdminOrdersPage() {
                       </Select>
                     </TableCell>
                   </TableRow>
-                ))
-              )}
+                )
+              ))}
             </TableBody>
           </Table>
+          </div>
+          </div>
         </Card>
       )}
 

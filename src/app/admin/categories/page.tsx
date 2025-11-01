@@ -212,34 +212,34 @@ export default function AdminCategoriesPage() {
   }
 
   return (
-    <div className="flex flex-col space-y-8 w-full">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-4xl font-bold tracking-tight">Categories Management</h1>
-          <p className="text-muted-foreground mt-2">
-            Manage product categories
-          </p>
-        </div>
+    <div className="flex flex-col space-y-6 sm:space-y-8 w-full px-4 sm:px-6 lg:px-0">
+      <div>
+        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight">Quản lý danh mục</h1>
+        <p className="text-sm sm:text-base text-muted-foreground mt-2">
+          Quản lý danh mục sản phẩm của nhà hàng
+        </p>
+      </div>
+      <div className="flex justify-end">
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
-            <Button>
+            <Button className="w-full sm:w-auto">
               <Plus className="mr-2 h-4 w-4" />
-              Add Category
+              Thêm danh mục
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Add New Category</DialogTitle>
+              <DialogTitle>Thêm danh mục mới</DialogTitle>
               <DialogDescription>
-                Create a new category for products
+                Tạo danh mục mới cho sản phẩm
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="categoryName">Category Name</Label>
+                <Label htmlFor="categoryName">Tên danh mục</Label>
                 <Input
                   id="categoryName"
-                  placeholder="Enter category name"
+                  placeholder="Nhập tên danh mục"
                   value={categoryName}
                   onChange={(e) => setCategoryName(e.target.value)}
                   onKeyDown={(e) => {
@@ -253,10 +253,10 @@ export default function AdminCategoriesPage() {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setDialogOpen(false)}>
-                Cancel
+                Hủy
               </Button>
               <Button onClick={createCategory} disabled={!categoryName.trim()}>
-                Create
+                Tạo
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -271,55 +271,59 @@ export default function AdminCategoriesPage() {
         </Card>
       ) : (
         <Card>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {categories.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={2} className="text-center text-muted-foreground">
-                    No categories found. Create your first category!
-                  </TableCell>
-                </TableRow>
-              ) : (
-                categories.map((category) => (
-                  <TableRow key={category.id}>
-                    <TableCell className="font-medium">{category.name}</TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreHorizontal className="h-4 w-4" />
-                            <span className="sr-only">Open menu</span>
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuItem
-                            onClick={() => setEditDialog({ open: true, category })}
-                          >
-                            <Edit2 className="mr-2 h-4 w-4" />
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            className="text-red-600"
-                            onClick={() => setDeleteDialog({ open: true, categoryId: category.id })}
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
+          <div className="overflow-x-auto -mx-4 sm:mx-0">
+            <div className="inline-block min-w-full align-middle px-4 sm:px-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Tên danh mục</TableHead>
+                    <TableHead>Hành động</TableHead>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                </TableHeader>
+                <TableBody>
+                  {categories.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={2} className="text-center text-muted-foreground">
+                        Không có danh mục nào. Tạo danh mục đầu tiên!
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    categories.map((category) => (
+                      <TableRow key={category.id}>
+                        <TableCell className="font-medium">{category.name}</TableCell>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon">
+                                <MoreHorizontal className="h-4 w-4" />
+                                <span className="sr-only">Mở menu</span>
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuLabel>Hành động</DropdownMenuLabel>
+                              <DropdownMenuItem
+                                onClick={() => setEditDialog({ open: true, category })}
+                              >
+                                <Edit2 className="mr-2 h-4 w-4" />
+                                Chỉnh sửa
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                className="text-red-600"
+                                onClick={() => setDeleteDialog({ open: true, categoryId: category.id })}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Xóa
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
         </Card>
       )}
 
@@ -327,14 +331,14 @@ export default function AdminCategoriesPage() {
       <Dialog open={editDialog.open} onOpenChange={(open) => setEditDialog({ open, category: null })}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit Category</DialogTitle>
+            <DialogTitle>Chỉnh sửa danh mục</DialogTitle>
             <DialogDescription>
-              Update the category name
+              Cập nhật tên danh mục
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="editCategoryName">Category Name</Label>
+              <Label htmlFor="editCategoryName">Tên danh mục</Label>
               <Input
                 id="editCategoryName"
                 defaultValue={editDialog.category?.name || ""}
@@ -360,7 +364,7 @@ export default function AdminCategoriesPage() {
               variant="outline"
               onClick={() => setEditDialog({ open: false, category: null })}
             >
-              Cancel
+              Hủy
             </Button>
             <Button
               onClick={() => {
@@ -370,7 +374,7 @@ export default function AdminCategoriesPage() {
               }}
               disabled={!editDialog.category?.name.trim()}
             >
-              Save
+              Lưu
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -383,14 +387,14 @@ export default function AdminCategoriesPage() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogTitle>Bạn có chắc chắn?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the category.
-              Products using this category will need to be updated.
+              Hành động này không thể hoàn tác. Danh mục sẽ bị xóa vĩnh viễn.
+              Các sản phẩm sử dụng danh mục này cần được cập nhật.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>Hủy</AlertDialogCancel>
             <AlertDialogAction
               className="bg-red-600 text-red-50 hover:bg-red-700"
               onClick={() => {
@@ -399,7 +403,7 @@ export default function AdminCategoriesPage() {
                 }
               }}
             >
-              Delete
+              Xóa
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
