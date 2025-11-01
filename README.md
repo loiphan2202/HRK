@@ -71,9 +71,6 @@ npx create-next-app@latest hrk --typescript --tailwind --app --no-src-dir
 cd hrk
 ```
 
-**Hình ảnh minh họa:**
-<!-- ![Create Next.js project](images/dev-1-create-nextjs.png) -->
-
 ---
 
 ### Bước 2: Cài đặt Dependencies cơ bản
@@ -96,9 +93,6 @@ npx shadcn@latest init
 npx shadcn@latest add button card input label select table badge dialog toast checkbox alert-dialog dropdown-menu textarea
 ```
 
-**Hình ảnh minh họa:**
-<!-- ![Install dependencies](images/dev-2-install-deps.png) -->
-
 ---
 
 ### Bước 3: Cấu hình TypeORM
@@ -114,9 +108,6 @@ export async function getDataSource(): Promise<DataSource> {
   // Cấu hình DataSource
 }
 ```
-
-**Hình ảnh minh họa:**
-<!-- ![TypeORM config](images/dev-3-typeorm-config.png) -->
 
 ---
 
@@ -146,9 +137,6 @@ Tạo các entity cho database:
 7. **OrderProduct Entity** (`src/entities/OrderProduct.ts`)
    - Chi tiết sản phẩm trong đơn hàng
 
-**Hình ảnh minh họa:**
-<!-- ![Create entities](images/dev-4-create-entities.png) -->
-
 ---
 
 ### Bước 5: Tạo Repository Layer
@@ -162,9 +150,6 @@ Tạo các repository để tương tác với database:
 5. `OrderRepositoryTypeORM` - Quản lý orders
 6. `TableRepositoryTypeORM` - Quản lý tables
 
-**Hình ảnh minh họa:**
-<!-- ![Create repositories](images/dev-5-create-repositories.png) -->
-
 ---
 
 ### Bước 6: Tạo Service Layer
@@ -177,9 +162,6 @@ Tạo các service để xử lý business logic:
 4. `OrderServiceTypeORM` - Logic xử lý order (create, update status, validate)
 5. `TableServiceTypeORM` - Logic xử lý table (generate QR, check-in)
 6. `OrderStatsServiceTypeORM` - Thống kê đơn hàng
-
-**Hình ảnh minh họa:**
-<!-- ![Create services](images/dev-6-create-services.png) -->
 
 ---
 
@@ -215,9 +197,6 @@ Tạo các API endpoints trong `src/app/api/`:
    - `POST /api/tables/[id]/qr` - Tạo QR code cho bàn
    - `POST /api/tables/check-in` - Check-in bằng token
 
-**Hình ảnh minh họa:**
-<!-- ![Create API routes](images/dev-7-create-api-routes.png) -->
-
 ---
 
 ### Bước 8: Tạo UI Components
@@ -243,9 +222,6 @@ Sử dụng Shadcn UI để tạo các components:
    - Table management với QR code
    - Product management
 
-**Hình ảnh minh họa:**
-<!-- ![Create UI components](images/dev-8-create-ui-components.png) -->
-
 ---
 
 ### Bước 9: Tạo Pages
@@ -267,9 +243,6 @@ Tạo các trang cho ứng dụng:
 4. `/admin/orders` - Quản lý đơn hàng
 5. `/admin/tables` - Quản lý bàn ăn
 
-**Hình ảnh minh họa:**
-<!-- ![Create pages](images/dev-9-create-pages.png) -->
-
 ---
 
 ### Bước 10: Implement Authentication
@@ -278,9 +251,6 @@ Tạo các trang cho ứng dụng:
 2. Tạo middleware để protect admin routes
 3. Implement JWT token storage và validation
 4. Tạo protected routes
-
-**Hình ảnh minh họa:**
-<!-- ![Implement authentication](images/dev-10-authentication.png) -->
 
 ---
 
@@ -291,9 +261,6 @@ Tạo các trang cho ứng dụng:
 3. Tích hợp với localStorage để lưu cart
 4. Checkout với table selection và QR check-in
 
-**Hình ảnh minh họa:**
-<!-- ![Implement cart](images/dev-11-cart.png) -->
-
 ---
 
 ### Bước 12: Implement QR Code Check-in
@@ -302,9 +269,6 @@ Tạo các trang cho ứng dụng:
 2. Implement check-in API với token validation
 3. Auto-select table khi check-in thành công
 4. Lưu check-in state trong localStorage
-
-**Hình ảnh minh họa:**
-<!-- ![QR code check-in](images/dev-12-qr-checkin.png) -->
 
 ---
 
@@ -315,31 +279,14 @@ Tạo các trang cho ứng dụng:
 3. Order detail modal với invoice export
 4. Excel export với statistics
 
-**Hình ảnh minh họa:**
-<!-- ![Order management](images/dev-13-order-management.png) -->
-
 ---
 
-### Bước 14: Implement Toast Notifications
-
-1. Setup Shadcn Toast component
-2. Thay thế tất cả `alert()` bằng toast
-3. Toast hiển thị ở top-right corner
-
-**Hình ảnh minh họa:**
-<!-- ![Toast notifications](images/dev-14-toast.png) -->
-
----
-
-### Bước 15: Testing và Debugging
+### Bước 14: Testing và Debugging
 
 1. Test các tính năng cơ bản
 2. Fix các lỗi TypeScript và ESLint
 3. Test với nhiều scenarios
 4. Optimize performance
-
-**Hình ảnh minh họa:**
-<!-- ![Testing](images/dev-15-testing.png) -->
 
 ---
 
@@ -352,9 +299,6 @@ git clone <repository-url>
 cd hrk
 ```
 
-**Hình ảnh minh họa:**
-<!-- ![Clone repository](images/setup-1-clone.png) -->
-
 ---
 
 ### Bước 2: Cài đặt Dependencies
@@ -365,9 +309,6 @@ Mở terminal và chạy lệnh:
 npm install
 ```
 
-**Hình ảnh minh họa:**
-<!-- ![npm install](images/setup-2-npm-install.png) -->
-
 ---
 
 ### Bước 3: Cấu hình Database
@@ -377,29 +318,8 @@ Tạo file `.env` trong thư mục gốc với nội dung:
 ```env
 DATABASE_URL=mongodb://localhost:27017/hrk
 JWT_SECRET=your-secret-key-here
+NODE_ENV=development (tùy chọn)
 ```
-
-**Hình ảnh minh họa:**
-<!-- ![.env file](images/setup-3-env-file.png) -->
-
-**Lưu ý:**
-- Thay `your-secret-key-here` bằng một chuỗi bí mật ngẫu nhiên
-- Đảm bảo MongoDB đang chạy trên máy của bạn
-
----
-
-### Bước 3: Khởi tạo Admin User
-
-Chạy lệnh để tạo tài khoản admin mặc định:
-
-```bash
-npm run dev
-```
-
-Sau đó truy cập: `http://localhost:3000/api/init-admin`
-
-**Hình ảnh minh họa:**
-<!-- ![Init admin](images/setup-3-init-admin.png) -->
 
 ---
 
@@ -413,15 +333,9 @@ npm run dev
 
 Truy cập ứng dụng tại: `http://localhost:3000`
 
-**Hình ảnh minh họa:**
-<!-- ![Running project](images/setup-5-running.png) -->
-
-**Thông tin đăng nhập mặc định:**
-- Email: `admin@example.com`
-- Password: `admin123`
-
-**Hình ảnh minh họa:**
-<!-- ![Login page](images/setup-6-login.png) -->
+**Thông tin đăng nhập admin mặc định:**
+- Email: `admin1@gmail.com`
+- Password: `123456`
 
 ---
 
@@ -432,9 +346,6 @@ Truy cập ứng dụng tại: `http://localhost:3000`
 ```bash
 npm run build
 ```
-
-**Hình ảnh minh họa:**
-<!-- ![Build production](images/setup-7-build.png) -->
 
 ---
 
@@ -456,9 +367,6 @@ npm run build
 
 Tải và cài đặt Heroku CLI từ: https://devcenter.heroku.com/articles/heroku-cli
 
-**Hình ảnh minh họa:**
-<!-- ![Heroku CLI installation](images/deploy-1-heroku-cli.png) -->
-
 ---
 
 ### Bước 2: Đăng nhập Heroku
@@ -469,9 +377,6 @@ Mở terminal và đăng nhập vào Heroku:
 heroku login
 ```
 
-**Hình ảnh minh họa:**
-<!-- ![Heroku login](images/deploy-2-heroku-login.png) -->
-
 ---
 
 ### Bước 3: Tạo Heroku App
@@ -479,13 +384,8 @@ heroku login
 Tạo một ứng dụng mới trên Heroku:
 
 ```bash
-heroku create hrk-restaurant-app
+heroku create hrk
 ```
-
-**Lưu ý**: Thay `hrk-restaurant-app` bằng tên bạn muốn (phải unique)
-
-**Hình ảnh minh họa:**
-<!-- ![Create Heroku app](images/deploy-3-create-app.png) -->
 
 ---
 
@@ -496,9 +396,6 @@ heroku create hrk-restaurant-app
 3. Tạo database user
 4. Whitelist IP `0.0.0.0/0` để cho phép kết nối từ mọi nơi
 5. Lấy connection string
-
-**Hình ảnh minh họa:**
-<!-- ![MongoDB Atlas setup](images/deploy-4-mongodb-atlas.png) -->
 
 ---
 
@@ -511,15 +408,9 @@ heroku config:set DATABASE_URL="your-mongodb-atlas-connection-string"
 heroku config:set JWT_SECRET="your-random-secret-key"
 ```
 
-**Hình ảnh minh họa:**
-<!-- ![Heroku config vars](images/deploy-5-config-vars.png) -->
-
 **Hoặc thông qua Heroku Dashboard:**
 1. Vào Settings → Config Vars
 2. Thêm `DATABASE_URL` và `JWT_SECRET`
-
-**Hình ảnh minh họa:**
-<!-- ![Heroku dashboard config](images/deploy-5-dashboard-config.png) -->
 
 ---
 
@@ -531,62 +422,35 @@ Nếu đã có git repository:
 git push heroku main
 ```
 
-**Hình ảnh minh họa:**
-<!-- ![Git push to Heroku](images/deploy-6-git-push.png) -->
-
 **Nếu chưa có git repository:**
 
 ```bash
 git init
 git add .
 git commit -m "Initial commit"
-heroku git:remote -a hrk-restaurant-app
+heroku git:remote -a hrk
 git push heroku main
 ```
 
-**Hình ảnh minh họa:**
-<!-- ![Git init and push](images/deploy-6-git-init.png) -->
-
 ---
 
-### Bước 7: Chạy Migration và Init Admin
+### Bước 7: Kiểm tra Deployment
 
-Sau khi deploy thành công, khởi tạo admin user:
-
-```bash
-heroku run npm run init:admin
-```
-
-Hoặc truy cập: `https://your-app-name.herokuapp.com/api/init-admin`
-
-**Hình ảnh minh họa:**
-<!-- ![Init admin on Heroku](images/deploy-7-init-admin.png) -->
-
----
-
-### Bước 8: Kiểm tra Deployment
-
-Truy cập ứng dụng của bạn tại:
+Truy cập ứng dụng tại:
 
 ```
 https://your-app-name.herokuapp.com
 ```
 
-**Hình ảnh minh họa:**
-<!-- ![Heroku app running](images/deploy-8-app-running.png) -->
-
 ---
 
-### Bước 9: Xem Logs (Nếu có lỗi)
+### Bước 8: Xem Logs (Nếu có lỗi)
 
 Để xem logs của ứng dụng:
 
 ```bash
 heroku logs --tail
 ```
-
-**Hình ảnh minh họa:**
-<!-- ![Heroku logs](images/deploy-9-logs.png) -->
 
 ---
 
@@ -597,55 +461,3 @@ heroku logs --tail
 - `npm run start` - Chạy production server
 - `npm run lint` - Kiểm tra lỗi linting
 
----
-
-## 🔒 Bảo mật
-
-- Passwords được hash bằng bcrypt
-- JWT tokens cho authentication
-- Role-based access control (Admin/Customer)
-- Environment variables cho sensitive data
-
----
-
-## 📄 License
-
-MIT License
-
----
-
-## 👥 Contributors
-
-- Development Team
-
----
-
-## 📞 Liên hệ
-
-Nếu có vấn đề hoặc câu hỏi, vui lòng tạo issue trên repository.
-
----
-
-## 🎯 Roadmap
-
-- [ ] Thêm tính năng đánh giá sản phẩm
-- [ ] Tích hợp payment gateway
-- [ ] Thêm notification system
-- [ ] Mobile app development
-- [ ] Multi-language support
-
----
-
-## 📸 Hướng dẫn thêm ảnh
-
-Để thêm ảnh vào README:
-
-1. Tạo thư mục `images/` trong project root
-2. Thêm file ảnh vào thư mục đó
-3. Uncomment các dòng `<!-- ![description](images/filename.png) -->` trong README
-4. Thay `filename.png` bằng tên file ảnh của bạn
-
-**Ví dụ:**
-```markdown
-![npm install](images/setup-1-npm-install.png)
-```
