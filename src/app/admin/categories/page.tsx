@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { useAuth } from "@/contexts/auth-context"
 import { useRouter } from "next/navigation"
+import { useToast } from "@/components/ui/use-toast"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -53,6 +54,7 @@ interface Category {
 export default function AdminCategoriesPage() {
   const { isAdmin, isLoading } = useAuth()
   const router = useRouter()
+  const { toast } = useToast()
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -94,7 +96,11 @@ export default function AdminCategoriesPage() {
   async function createCategory() {
     try {
       if (!categoryName.trim()) {
-        alert("Category name is required")
+        toast({
+          variant: "destructive",
+          title: "Lỗi",
+          description: "Tên danh mục là bắt buộc.",
+        })
         return
       }
 
@@ -113,17 +119,29 @@ export default function AdminCategoriesPage() {
       setCategoryName("")
       setDialogOpen(false)
       await loadCategories()
+      toast({
+        title: "Thành công",
+        description: "Đã tạo danh mục mới.",
+      })
     } catch (error: unknown) {
       console.error("Failed to create category:", error)
-      const message = error instanceof Error ? error.message : "Failed to create category"
-      alert(message)
+      const message = error instanceof Error ? error.message : "Không thể tạo danh mục"
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: message,
+      })
     }
   }
 
   async function updateCategory(id: string, name: string) {
     try {
       if (!name.trim()) {
-        alert("Category name is required")
+        toast({
+          variant: "destructive",
+          title: "Lỗi",
+          description: "Tên danh mục là bắt buộc.",
+        })
         return
       }
 
@@ -141,10 +159,18 @@ export default function AdminCategoriesPage() {
 
       setEditDialog({ open: false, category: null })
       await loadCategories()
+      toast({
+        title: "Thành công",
+        description: "Đã cập nhật danh mục.",
+      })
     } catch (error: unknown) {
       console.error("Failed to update category:", error)
-      const message = error instanceof Error ? error.message : "Failed to update category"
-      alert(message)
+      const message = error instanceof Error ? error.message : "Không thể cập nhật danh mục"
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: message,
+      })
     }
   }
 
@@ -162,10 +188,18 @@ export default function AdminCategoriesPage() {
 
       setDeleteDialog({ open: false, categoryId: null })
       await loadCategories()
+      toast({
+        title: "Thành công",
+        description: "Đã xóa danh mục.",
+      })
     } catch (error: unknown) {
       console.error("Failed to delete category:", error)
-      const message = error instanceof Error ? error.message : "Failed to delete category"
-      alert(message)
+      const message = error instanceof Error ? error.message : "Không thể xóa danh mục"
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: message,
+      })
     }
   }
 

@@ -1,16 +1,17 @@
 import { NextResponse } from 'next/server';
-import { UserService } from '../services/user-service';
+import { UserServiceTypeORM } from '../services/user-service-typeorm';
 import { userCreateSchema, userUpdateSchema, loginSchema } from '../schemas/user-schema';
 import { ErrorHandler } from '../errors/error-handler';
 import { UnauthorizedError } from '../errors/base-error';
 import jwt from 'jsonwebtoken';
 import { saveFileFromForm } from '@/server/utils/upload';
+import { serializeEntity } from '../utils/typeorm-helpers';
 
 export class UserController {
-  private readonly service: UserService;
+  private readonly service: UserServiceTypeORM;
 
   constructor() {
-    this.service = new UserService();
+    this.service = new UserServiceTypeORM();
   }
 
   private excludePassword<T extends { password?: string }>(user: T) {
@@ -38,9 +39,10 @@ export class UserController {
         user = await this.service.create(validated);
 
         // save file if provided
-        const imagePath = await saveFileFromForm(form, 'image', 'users', user.id);
+        const userId = typeof user.id === 'string' ? user.id : user.id.toString();
+        const imagePath = await saveFileFromForm(form, 'image', 'users', userId);
         if (imagePath) {
-          user = await this.service.update(user.id, { image: imagePath });
+          user = await this.service.update(userId, { image: imagePath });
         }
       } else {
         const data = await req.json();
@@ -49,8 +51,9 @@ export class UserController {
       }
 
       // Generate token after registration
+      const userId = typeof user.id === 'string' ? user.id : user.id.toString();
       const token = jwt.sign(
-        { userId: user.id },
+        { userId },
         process.env.JWT_SECRET || 'your-secret-key',
         { expiresIn: '1d' }
       );
@@ -58,7 +61,7 @@ export class UserController {
       return NextResponse.json({
         success: true,
         data: {
-          user: this.excludePassword(user),
+          user: this.excludePassword(serializeEntity(user)),
           token,
         },
       });
@@ -82,8 +85,9 @@ export class UserController {
         throw new UnauthorizedError('Invalid credentials');
       }
 
+      const userId = typeof user.id === 'string' ? user.id : user.id.toString();
       const token = jwt.sign(
-        { userId: user.id },
+        { userId },
         process.env.JWT_SECRET || 'your-secret-key',
         { expiresIn: '1d' }
       );
@@ -91,7 +95,7 @@ export class UserController {
       return NextResponse.json({
         success: true,
         data: {
-          user: this.excludePassword(user),
+          user: this.excludePassword(serializeEntity(user)),
           token,
         },
       });
@@ -117,17 +121,17 @@ export class UserController {
         const imagePath = await saveFileFromForm(form, 'image', 'users', id);
         if (imagePath) {
           const updated = await this.service.update(id, { image: imagePath });
-          return NextResponse.json({ success: true, data: this.excludePassword(updated) });
+          return NextResponse.json({ success: true, data: this.excludePassword(serializeEntity(updated)) });
         }
 
-        return NextResponse.json({ success: true, data: this.excludePassword(user) });
+        return NextResponse.json({ success: true, data: this.excludePassword(serializeEntity(user)) });
       }
 
       const data = await req.json();
       const validatedData = userUpdateSchema.parse(data);
       const user = await this.service.update(id, validatedData);
 
-      return NextResponse.json({ success: true, data: this.excludePassword(user) });
+      return NextResponse.json({ success: true, data: this.excludePassword(serializeEntity(user)) });
     } catch (error: unknown) {
       return ErrorHandler.handle(error);
     }
@@ -136,7 +140,7 @@ export class UserController {
   async delete(req: Request, id: string) {
     try {
       const user = await this.service.delete(id);
-      return NextResponse.json({ success: true, data: this.excludePassword(user) });
+      return NextResponse.json({ success: true, data: this.excludePassword(serializeEntity(user)) });
     } catch (error: unknown) {
       return ErrorHandler.handle(error);
     }
@@ -145,7 +149,7 @@ export class UserController {
   async getById(req: Request, id: string) {
     try {
       const user = await this.service.findById(id);
-      return NextResponse.json({ success: true, data: this.excludePassword(user) });
+      return NextResponse.json({ success: true, data: this.excludePassword(serializeEntity(user)) });
     } catch (error: unknown) {
       return ErrorHandler.handle(error);
     }

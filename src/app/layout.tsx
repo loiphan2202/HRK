@@ -7,6 +7,7 @@ import { MainNav } from "@/components/layout/main-nav";
 import { CartProvider } from "@/contexts/cart-context";
 import { AuthProvider } from "@/contexts/auth-context";
 import { ensureAdminExists } from "@/lib/init-admin";
+import { Toaster } from "@/components/ui/toaster";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -28,12 +29,10 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // Ensure admin account exists on server startup
-  try {
-    await ensureAdminExists();
-  } catch (error) {
+  // Ensure admin account exists on server startup (non-blocking)
+  ensureAdminExists().catch((error) => {
     console.error('Failed to initialize admin:', error);
-  }
+  });
 
   return (
     <html lang="en" suppressHydrationWarning>
@@ -52,6 +51,7 @@ export default async function RootLayout({
               {children}
             </main>
           </div>
+              <Toaster />
             </CartProvider>
           </AuthProvider>
         </ThemeProvider>

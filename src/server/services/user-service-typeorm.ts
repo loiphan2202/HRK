@@ -1,14 +1,14 @@
-import { User } from '@/generated/prisma/client';
-import { UserRepository } from '../repositories/user-repository';
+import { User, UserRole } from '@/entities/User';
+import { UserRepositoryTypeORM } from '../repositories/user-repository-typeorm';
 import { UserCreate, UserUpdate } from '../schemas/user-schema';
 import { NotFoundError, BadRequestError } from '../errors/base-error';
 import * as bcrypt from 'bcrypt';
 
-export class UserService {
-  private readonly repository: UserRepository;
+export class UserServiceTypeORM {
+  private readonly repository: UserRepositoryTypeORM;
 
   constructor() {
-    this.repository = new UserRepository();
+    this.repository = new UserRepositoryTypeORM();
   }
 
   async findById(id: string): Promise<User> {
@@ -30,7 +30,7 @@ export class UserService {
     }
 
     const hashedPassword = await bcrypt.hash(data.password, 10);
-    return await this.repository.create({
+    return await this.repository.createUser({
       ...data,
       password: hashedPassword,
     });
@@ -41,7 +41,7 @@ export class UserService {
 
     if (data.email) {
       const existingUser = await this.findByEmail(data.email);
-      if (existingUser && existingUser.id !== id) {
+      if (existingUser && existingUser.id.toString() !== id) {
         throw new BadRequestError('Email already in use');
       }
     }
@@ -50,7 +50,16 @@ export class UserService {
       data.password = await bcrypt.hash(data.password, 10);
     }
 
-    return await this.repository.update(id, data);
+    // Prepare update data with proper type casting
+    const updateData: Partial<User> = {
+      ...(data.email && { email: data.email }),
+      ...(data.name !== undefined && { name: data.name }),
+      ...(data.password && { password: data.password }),
+      ...(data.image !== undefined && { image: data.image }),
+      ...(data.role && { role: UserRole[data.role as keyof typeof UserRole] }),
+    };
+
+    return await this.repository.update(id, updateData);
   }
 
   async delete(id: string): Promise<User> {

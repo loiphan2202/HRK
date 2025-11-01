@@ -1,14 +1,15 @@
 import { NextResponse } from 'next/server';
-import { ProductService } from '../services/product-service';
+import { ProductServiceTypeORM } from '../services/product-service-typeorm';
 import { productCreateSchema, productUpdateSchema, ProductUpdate } from '../schemas/product-schema';
 import { ErrorHandler } from '../errors/error-handler';
 import { saveFileFromForm } from '@/server/utils/upload';
+import { serializeEntity } from '../utils/typeorm-helpers';
 
 export class ProductController {
-  private readonly service: ProductService;
+  private readonly service: ProductServiceTypeORM;
 
   constructor() {
-    this.service = new ProductService();
+    this.service = new ProductServiceTypeORM();
   }
 
   private async processFormData(form: FormData): Promise<Record<string, string | number | null | string[]>> {
@@ -77,19 +78,20 @@ export class ProductController {
         const product = await this.service.create(validated);
 
         // save file if provided
-        const imagePath = await saveFileFromForm(form, 'image', 'products', product.id);
+        const productId = typeof product.id === 'string' ? product.id : product.id.toString();
+        const imagePath = await saveFileFromForm(form, 'image', 'products', productId);
         if (imagePath) {
-          await this.service.update(product.id, { image: imagePath });
-          const updated = await this.service.findById(product.id);
-          return NextResponse.json({ success: true, data: updated });
+          await this.service.update(productId, { image: imagePath });
+          const updated = await this.service.findById(productId);
+          return NextResponse.json({ success: true, data: serializeEntity(updated) });
         }
 
-        return NextResponse.json({ success: true, data: product });
+        return NextResponse.json({ success: true, data: serializeEntity(product) });
       } else {
         const data = await req.json();
         const validated = productCreateSchema.parse(data);
         const product = await this.service.create(validated);
-        return NextResponse.json({ success: true, data: product });
+        return NextResponse.json({ success: true, data: serializeEntity(product) });
       }
     } catch (error: unknown) {
       return ErrorHandler.handle(error);
@@ -116,12 +118,12 @@ export class ProductController {
           // Xử lý upload ảnh nếu có
           const updatedWithImage = await this.handleImageUpload(form, id, validatedData);
           if (updatedWithImage) {
-            return NextResponse.json({ success: true, data: updatedWithImage });
+            return NextResponse.json({ success: true, data: serializeEntity(updatedWithImage) });
           }
 
           // Nếu không có ảnh mới hoặc ảnh không hợp lệ, chỉ cập nhật thông tin khác
           const product = await this.service.update(id, validatedData);
-          return NextResponse.json({ success: true, data: product });
+          return NextResponse.json({ success: true, data: serializeEntity(product) });
         } catch (error) {
           return ErrorHandler.handle(error);
         }
@@ -129,7 +131,7 @@ export class ProductController {
         const data = await req.json();
         const validated = productUpdateSchema.parse(data);
         const product = await this.service.update(id, validated);
-        return NextResponse.json({ success: true, data: product });
+        return NextResponse.json({ success: true, data: serializeEntity(product) });
       }
     } catch (error: unknown) {
       return ErrorHandler.handle(error);
@@ -139,7 +141,7 @@ export class ProductController {
   async delete(req: Request, id: string) {
     try {
       const product = await this.service.delete(id);
-      return NextResponse.json({ success: true, data: product });
+      return NextResponse.json({ success: true, data: serializeEntity(product) });
     } catch (error: unknown) {
       return ErrorHandler.handle(error);
     }
@@ -148,7 +150,7 @@ export class ProductController {
   async getById(req: Request, id: string) {
     try {
       const product = await this.service.findById(id);
-      return NextResponse.json({ success: true, data: product });
+      return NextResponse.json({ success: true, data: serializeEntity(product) });
     } catch (error: unknown) {
       return ErrorHandler.handle(error);
     }
@@ -157,7 +159,7 @@ export class ProductController {
   async getAll() {
     try {
       const products = await this.service.findAll();
-      return NextResponse.json({ success: true, data: products });
+      return NextResponse.json({ success: true, data: products.map(p => serializeEntity(p)) });
     } catch (error: unknown) {
       return ErrorHandler.handle(error);
     }

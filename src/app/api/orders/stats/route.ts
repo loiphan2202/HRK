@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { OrderStatsService } from '@/server/services/order-stats-service'
+import { OrderStatsServiceTypeORM } from '@/server/services/order-stats-service-typeorm'
 import { ErrorHandler } from '@/server/errors/error-handler'
 
-const statsService = new OrderStatsService()
+const statsService = new OrderStatsServiceTypeORM()
 
 export async function GET(request: NextRequest) {
   try {

@@ -1,13 +1,13 @@
-import { Table } from '@/generated/prisma/client';
-import { TableRepository } from '../repositories/table-repository';
+import { Table } from '@/entities/Table';
+import { TableRepositoryTypeORM } from '../repositories/table-repository-typeorm';
 import { TableCreate, TableUpdate } from '../schemas/table-schema';
 import { NotFoundError, BadRequestError } from '../errors/base-error';
 
-export class TableService {
-  private readonly repository: TableRepository;
+export class TableServiceTypeORM {
+  private readonly repository: TableRepositoryTypeORM;
 
   constructor() {
-    this.repository = new TableRepository();
+    this.repository = new TableRepositoryTypeORM();
   }
 
   async findById(id: string): Promise<Table> {
@@ -22,12 +22,12 @@ export class TableService {
     return await this.repository.findByNumber(number);
   }
 
-  async findByQrCode(qrCode: string): Promise<Table | null> {
-    return await this.repository.findByQrCode(qrCode);
-  }
-
   async findByToken(token: string): Promise<Table | null> {
     return await this.repository.findByToken(token);
+  }
+
+  async findByQrCode(qrCode: string): Promise<Table | null> {
+    return await this.repository.findByQrCode(qrCode);
   }
 
   async generateQrCode(id: string, baseUrl: string): Promise<Table> {
@@ -59,7 +59,7 @@ export class TableService {
     if (existing) {
       throw new BadRequestError(`Table number ${data.number} already exists`);
     }
-    return await this.repository.create(data);
+    return await this.repository.createTable(data);
   }
 
   async update(id: string, data: TableUpdate): Promise<Table> {
@@ -68,7 +68,7 @@ export class TableService {
     // Check if table number is being updated and already exists
     if (data.number) {
       const existing = await this.repository.findByNumber(data.number);
-      if (existing && existing.id !== id) {
+      if (existing && existing.id.toString() !== id) {
         throw new BadRequestError(`Table number ${data.number} already exists`);
       }
     }
@@ -85,4 +85,3 @@ export class TableService {
     return await this.update(id, { status });
   }
 }
-

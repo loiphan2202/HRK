@@ -1,20 +1,21 @@
-import { Order } from '@/generated/prisma/client';
-import { OrderRepository } from '../repositories/order-repository';
-import { ProductService } from './product-service';
-import { TableService } from './table-service';
+import { Order } from '@/entities/Order';
+import { OrderRepositoryTypeORM } from '../repositories/order-repository-typeorm';
+import { ProductServiceTypeORM } from './product-service-typeorm';
+import { TableServiceTypeORM } from './table-service-typeorm';
 import { OrderCreate, OrderUpdate } from '../schemas/order-schema';
 import { NotFoundError, BadRequestError } from '../errors/base-error';
-import { prisma } from '@/lib/prisma';
+import { getDataSource } from '@/lib/typeorm';
+import { ObjectId } from 'mongodb';
 
-export class OrderService {
-  private readonly repository: OrderRepository;
-  private readonly productService: ProductService;
-  private readonly tableService: TableService;
+export class OrderServiceTypeORM {
+  private readonly repository: OrderRepositoryTypeORM;
+  private readonly productService: ProductServiceTypeORM;
+  private readonly tableService: TableServiceTypeORM;
 
   constructor() {
-    this.repository = new OrderRepository();
-    this.productService = new ProductService();
-    this.tableService = new TableService();
+    this.repository = new OrderRepositoryTypeORM();
+    this.productService = new ProductServiceTypeORM();
+    this.tableService = new TableServiceTypeORM();
   }
 
   async findById(id: string): Promise<Order> {
@@ -22,7 +23,7 @@ export class OrderService {
     if (!order) {
       throw new NotFoundError('Order not found');
     }
-    return order;
+    return order as any;
   }
 
   async findByUserId(userId: string): Promise<Order[]> {
@@ -42,26 +43,34 @@ export class OrderService {
   }
 
   async update(id: string, data: OrderUpdate): Promise<Order> {
-    const order = await this.findById(id); // Check if order exists
+    const order = await this.findById(id) as any; // Check if order exists
+    
+    // Prepare update data - TypeORM UpdateDateColumn tự động cập nhật khi save
+    const updateData: OrderUpdate = {
+      ...data,
+      // Nếu status thay đổi sang COMPLETED hoặc CANCELLED, đảm bảo updatedAt được set
+      // TypeORM sẽ tự động cập nhật updatedAt khi entity được save
+    };
     
     // If status is being updated to COMPLETED, update table status
     if (data.status === 'COMPLETED' && order.tableId) {
       // Check if there are other pending/processing orders for this table
       const otherOrders = await this.repository.findAll({
-        tableNumber: order.tableNumber || undefined, // Keep as number
+        tableNumber: order.tableNumber || undefined,
         status: undefined,
       });
       
       const hasActiveOrders = otherOrders.some(
-        o => o.id !== order.id && (o.status === 'PENDING' || o.status === 'PROCESSING')
+        (o: any) => o.id.toString() !== order.id.toString() && (o.status === 'PENDING' || o.status === 'PROCESSING')
       );
       
       if (!hasActiveOrders && order.tableId) {
-        await this.tableService.updateStatus(order.tableId, 'AVAILABLE');
+        await this.tableService.updateStatus(order.tableId.toString(), 'AVAILABLE');
       }
     }
     
-    return await this.repository.update(id, data);
+    // TypeORM UpdateDateColumn sẽ tự động cập nhật updatedAt khi entity được save
+    return await this.repository.update(id, updateData);
   }
 
   async create(data: OrderCreate): Promise<Order> {
@@ -69,17 +78,18 @@ export class OrderService {
       throw new BadRequestError('Order must contain at least one product');
     }
 
-  let total = 0;
+    let total = 0;
 
-  // Use a transaction to ensure data consistency
-  return await prisma.$transaction(async () => {
+    // Use TypeORM transaction
+    const dataSource = await getDataSource();
+    return await dataSource.transaction(async (manager) => {
       // Check stock and calculate total
       for (const item of data.products) {
         if (item.quantity <= 0) {
           throw new BadRequestError('Product quantity must be positive');
         }
 
-        const product = await this.productService.findById(item.productId);
+        const product = await this.productService.findById(item.productId) as any;
         // Chỉ kiểm tra stock nếu product có stock tracking (stock !== null && stock >= 0)
         if (product.stock !== null && product.stock >= 0 && product.stock < item.quantity) {
           throw new BadRequestError(`Insufficient stock for product ${product.name}`);
@@ -109,31 +119,33 @@ export class OrderService {
           if (tableByToken.number !== data.tableNumber) {
             throw new BadRequestError('Table token does not match table number.');
           }
-        }
-
-        // Kiểm tra bàn có đang trống không (cho khách hàng chọn bàn trống)
-        if (table.status !== 'AVAILABLE') {
-          throw new BadRequestError(`Table ${data.tableNumber} is not available. Please choose another table.`);
-        }
-
-        // Check if table has pending orders
-        const pendingOrders = await this.repository.findAll({
-          tableNumber: data.tableNumber, // Keep as number (Int)
-          status: 'PENDING',
-        });
-        if (pendingOrders.length > 0) {
-          throw new BadRequestError('Table is occupied with pending orders');
+          // Nếu có valid token (đã check-in), cho phép đặt món dù bàn không AVAILABLE
+          // Không cần kiểm tra pending orders vì đã check-in thì có thể có nhiều orders
+        } else {
+          // Nếu không có token, kiểm tra bàn có đang trống không
+          if (table.status !== 'AVAILABLE') {
+            throw new BadRequestError(`Table ${data.tableNumber} is not available. Please choose another table.`);
+          }
+          
+          // Chỉ kiểm tra pending orders nếu không có token
+          const pendingOrders = await this.repository.findAll({
+            tableNumber: data.tableNumber,
+            status: 'PENDING',
+          });
+          if (pendingOrders.length > 0) {
+            throw new BadRequestError('Table is occupied with pending orders');
+          }
         }
         
         // Update table to OCCUPIED
-        await this.tableService.updateStatus(table.id, 'OCCUPIED');
-        createPayload.tableId = table.id;
+        await this.tableService.updateStatus(table.id.toString(), 'OCCUPIED');
+        createPayload.tableId = table.id.toString();
       } else {
         // Table number is required
         throw new BadRequestError('Table number is required');
       }
 
-      const order = await this.repository.create(createPayload);
+      const order = await this.repository.createOrder(createPayload);
 
       // Update stock for all products
       await Promise.all(

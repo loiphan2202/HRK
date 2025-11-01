@@ -10,6 +10,7 @@ import Link from "next/link"
 import { Minus, Plus, Trash2, ShoppingBag, ArrowLeft } from "lucide-react"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { useToast } from "@/components/ui/use-toast"
 
 interface Table {
   id: string
@@ -23,11 +24,31 @@ export default function CartPage() {
   const [selectedTableId, setSelectedTableId] = useState<string>("")
   const [availableTables, setAvailableTables] = useState<Table[]>([])
   const [loadingTables, setLoadingTables] = useState(true)
+  const { toast } = useToast()
   const router = useRouter()
 
   useEffect(() => {
     loadAvailableTables()
   }, [])
+
+  useEffect(() => {
+    // Tự động chọn bàn đã check-in khi tables được load
+    if (availableTables.length > 0 && !selectedTableId) {
+      try {
+        const checkInData = localStorage.getItem('currentTable')
+        if (checkInData) {
+          const parsed = JSON.parse(checkInData)
+          // Tìm bàn đã check-in trong danh sách
+          const checkedInTable = availableTables.find(t => t.number === parsed.tableNumber)
+          if (checkedInTable) {
+            setSelectedTableId(checkedInTable.id)
+          }
+        }
+      } catch {
+        // Ignore
+      }
+    }
+  }, [availableTables, selectedTableId])
 
   async function loadAvailableTables() {
     try {
@@ -49,37 +70,45 @@ export default function CartPage() {
     if (items.length === 0) return
     
     if (!selectedTableId) {
-      alert("Vui lòng chọn bàn để đặt món!")
+      toast({
+        variant: "destructive",
+        title: "Chưa chọn bàn",
+        description: "Vui lòng chọn bàn để đặt món!",
+      })
       return
     }
 
     const selectedTable = availableTables.find(t => t.id === selectedTableId)
     if (!selectedTable) {
-      alert("Bàn đã không còn khả dụng. Vui lòng chọn bàn khác.")
-      await loadAvailableTables()
-      return
-    }
-
-    // Kiểm tra bàn có đang trống không
-    if (selectedTable.status !== 'AVAILABLE') {
-      alert("Bàn đã được sử dụng. Vui lòng chọn bàn khác.")
+      toast({
+        variant: "destructive",
+        title: "Bàn không khả dụng",
+        description: "Bàn đã không còn khả dụng. Vui lòng chọn bàn khác.",
+      })
       await loadAvailableTables()
       return
     }
 
     // Kiểm tra bàn có đang check-in không
     const hasCheckIn = localStorage.getItem('currentTable')
-    let checkInTableNumber: number | null = null
+    let checkInData: { tableId?: string; tableNumber?: number; token?: string } | null = null
     try {
       if (hasCheckIn) {
-        const checkInData = JSON.parse(hasCheckIn)
-        checkInTableNumber = checkInData.tableNumber
+        checkInData = JSON.parse(hasCheckIn)
       }
     } catch {
       // Ignore
     }
-    if (checkInTableNumber === selectedTable.number) {
-      alert("Bàn này đã được check-in. Vui lòng chọn bàn khác.")
+
+    // Nếu không phải bàn đã check-in, kiểm tra status
+    const isCheckedInTable = checkInData && checkInData.tableNumber === selectedTable.number
+    if (!isCheckedInTable && selectedTable.status !== 'AVAILABLE') {
+      toast({
+        variant: "destructive",
+        title: "Bàn không khả dụng",
+        description: "Bàn đã được sử dụng. Vui lòng chọn bàn khác.",
+      })
+      await loadAvailableTables()
       return
     }
 
@@ -87,23 +116,26 @@ export default function CartPage() {
 
     setIsCheckingOut(true)
     try {
-      // Get user ID if logged in
+      // Get user ID if logged in - ensure it's a string
       const userStr = localStorage.getItem("user")
       let userId: string | undefined = undefined
       
       if (userStr) {
         try {
           const user = JSON.parse(userStr)
-          userId = user.id
+          // Convert userId to string if it's a number
+          userId = typeof user.id === 'string' ? user.id : String(user.id)
         } catch {
           // Ignore
         }
       }
 
-      // Create order via API (không cần token cho khách hàng chọn bàn trống)
+      // Create order via API
+      // Nếu đã check-in, sử dụng token để validate
       const orderData = {
         ...(userId && { userId }),
         tableNumber: tableNum,
+        ...(isCheckedInTable && checkInData?.token && { tableToken: checkInData.token }),
         products: items.map((item) => ({
           productId: item.productId,
           quantity: item.quantity,
@@ -142,11 +174,19 @@ export default function CartPage() {
       // Clear cart after successful order placement
       clearCart()
       
+      // Nếu đặt món thành công với bàn đã check-in, giữ nguyên bàn (không clear)
+      // Nếu không phải bàn check-in, clear selection
+      if (!isCheckedInTable) {
+        setSelectedTableId("")
+      }
+      
       // Reload available tables
       await loadAvailableTables()
-      setSelectedTableId("")
       
-      alert("Đặt món thành công! Admin sẽ xử lý đơn hàng của bạn.")
+      toast({
+        title: "Đặt món thành công!",
+        description: "Admin sẽ xử lý đơn hàng của bạn.",
+      })
       
       // Redirect to home if not logged in, otherwise to orders
       if (userId) {
@@ -157,7 +197,11 @@ export default function CartPage() {
     } catch (error) {
       console.error("Checkout failed:", error)
       const errorMessage = error instanceof Error ? error.message : "Đặt món thất bại. Vui lòng thử lại."
-      alert(errorMessage)
+      toast({
+        variant: "destructive",
+        title: "Đặt món thất bại",
+        description: errorMessage,
+      })
     } finally {
       setIsCheckingOut(false)
     }
@@ -311,8 +355,8 @@ export default function CartPage() {
                         // Ignore
                       }
                       
-                      // Chỉ cho phép chọn bàn trống và chưa check-in
-                      const canSelect = isAvailable && !isCheckedIn
+                      // Cho phép chọn bàn trống hoặc bàn đã check-in (tự động chọn)
+                      const canSelect = isAvailable || isCheckedIn
                       
                       return (
                         <button
@@ -320,10 +364,10 @@ export default function CartPage() {
                           type="button"
                           onClick={() => {
                             if (canSelect) {
-                              // Nếu click vào bàn đã chọn, hủy chọn
-                              if (isSelected) {
+                              // Nếu click vào bàn đã chọn, hủy chọn (trừ khi là bàn đã check-in)
+                              if (isSelected && !isCheckedIn) {
                                 setSelectedTableId("")
-                              } else {
+                              } else if (!isSelected) {
                                 setSelectedTableId(table.id)
                               }
                             }
@@ -334,10 +378,10 @@ export default function CartPage() {
                             flex flex-col items-center justify-center font-semibold text-sm
                             ${isSelected 
                               ? 'border-primary bg-primary/10 scale-105 shadow-lg ring-2 ring-primary/20' 
+                              : isCheckedIn
+                              ? 'border-blue-500 bg-blue-50 hover:bg-blue-100 hover:scale-105 cursor-pointer dark:bg-blue-950/50 dark:border-blue-400'
                               : canSelect
                               ? 'border-green-500 bg-green-50 hover:bg-green-100 hover:scale-105 cursor-pointer dark:bg-green-950/50 dark:border-green-400'
-                              : isCheckedIn
-                              ? 'border-blue-500 bg-blue-50 cursor-not-allowed opacity-60 dark:bg-blue-950/50 dark:border-blue-400'
                               : isOccupied
                               ? 'border-red-500 bg-red-50 cursor-not-allowed opacity-60 dark:bg-red-950/50 dark:border-red-400'
                               : 'border-yellow-500 bg-yellow-50 cursor-not-allowed opacity-60 dark:bg-yellow-950/50 dark:border-yellow-400'
@@ -366,9 +410,14 @@ export default function CartPage() {
                           `}>
                             {table.number}
                           </span>
-                          {!canSelect && (
+                          {isCheckedIn && isSelected && (
+                            <span className="text-xs mt-1 opacity-75 text-blue-700 dark:text-blue-300">
+                              Đã check-in
+                            </span>
+                          )}
+                          {!canSelect && !isCheckedIn && (
                             <span className="text-xs mt-1 opacity-75">
-                              {isCheckedIn ? 'Đã check-in' : isOccupied ? 'Đang dùng' : 'Đã đặt'}
+                              {isOccupied ? 'Đang dùng' : 'Đã đặt'}
                             </span>
                           )}
                         </button>
@@ -413,7 +462,25 @@ export default function CartPage() {
                 className="w-full"
                 size="lg"
                 onClick={handleCheckout}
-                disabled={isCheckingOut || !selectedTableId || !availableTables.find(t => t.id === selectedTableId && t.status === 'AVAILABLE')}
+                disabled={isCheckingOut || !selectedTableId || (() => {
+                  const selectedTable = availableTables.find(t => t.id === selectedTableId)
+                  if (!selectedTable) return true
+                  
+                  // Cho phép đặt món nếu bàn AVAILABLE hoặc đã check-in
+                  try {
+                    const checkInData = localStorage.getItem('currentTable')
+                    if (checkInData) {
+                      const parsed = JSON.parse(checkInData)
+                      if (parsed.tableNumber === selectedTable.number) {
+                        return false // Cho phép đặt món với bàn đã check-in
+                      }
+                    }
+                  } catch {
+                    // Ignore
+                  }
+                  
+                  return selectedTable.status !== 'AVAILABLE'
+                })()}
               >
                 {isCheckingOut ? "Đang xử lý..." : "Đặt món"}
               </Button>

@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server';
-import { TableService } from '../services/table-service';
+import { TableServiceTypeORM } from '../services/table-service-typeorm';
 import { tableCreateSchema, tableUpdateSchema } from '../schemas/table-schema';
 import { ErrorHandler } from '../errors/error-handler';
+import { serializeEntity } from '../utils/typeorm-helpers';
 
 export class TableController {
-  private readonly service: TableService;
+  private readonly service: TableServiceTypeORM;
 
   constructor() {
-    this.service = new TableService();
+    this.service = new TableServiceTypeORM();
   }
 
   async create(req: Request) {
@@ -16,7 +17,7 @@ export class TableController {
       const validatedData = tableCreateSchema.parse(data);
       const table = await this.service.create(validatedData);
 
-      return NextResponse.json({ success: true, data: table });
+      return NextResponse.json({ success: true, data: serializeEntity(table) });
     } catch (error: unknown) {
       return ErrorHandler.handle(error);
     }
@@ -25,7 +26,7 @@ export class TableController {
   async getById(req: Request, id: string) {
     try {
       const table = await this.service.findById(id);
-      return NextResponse.json({ success: true, data: table });
+      return NextResponse.json({ success: true, data: serializeEntity(table) });
     } catch (error: unknown) {
       return ErrorHandler.handle(error);
     }
@@ -38,11 +39,11 @@ export class TableController {
       
       if (number) {
         const table = await this.service.findByNumber(parseInt(number));
-        return NextResponse.json({ success: true, data: table });
+        return NextResponse.json({ success: true, data: table ? serializeEntity(table) : null });
       }
 
       const tables = await this.service.findAll();
-      return NextResponse.json({ success: true, data: tables });
+      return NextResponse.json({ success: true, data: tables.map(t => serializeEntity(t)) });
     } catch (error: unknown) {
       return ErrorHandler.handle(error);
     }
@@ -54,7 +55,7 @@ export class TableController {
       const validatedData = tableUpdateSchema.parse(data);
       const table = await this.service.update(id, validatedData);
 
-      return NextResponse.json({ success: true, data: table });
+      return NextResponse.json({ success: true, data: serializeEntity(table) });
     } catch (error: unknown) {
       return ErrorHandler.handle(error);
     }
@@ -63,7 +64,7 @@ export class TableController {
   async delete(req: Request, id: string) {
     try {
       const table = await this.service.delete(id);
-      return NextResponse.json({ success: true, data: table });
+      return NextResponse.json({ success: true, data: serializeEntity(table) });
     } catch (error: unknown) {
       return ErrorHandler.handle(error);
     }
@@ -78,7 +79,7 @@ export class TableController {
       
       const table = await this.service.generateQrCode(id, baseUrl);
 
-      return NextResponse.json({ success: true, data: table });
+      return NextResponse.json({ success: true, data: serializeEntity(table) });
     } catch (error: unknown) {
       return ErrorHandler.handle(error);
     }
@@ -105,7 +106,7 @@ export class TableController {
         );
       }
 
-      return NextResponse.json({ success: true, data: { table } });
+      return NextResponse.json({ success: true, data: { table: serializeEntity(table) } });
     } catch (error: unknown) {
       return ErrorHandler.handle(error);
     }

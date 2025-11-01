@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { useAuth } from "@/contexts/auth-context"
 import { useRouter } from "next/navigation"
+import { useToast } from "@/components/ui/use-toast"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Table,
@@ -14,8 +15,17 @@ import {
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Download, TrendingUp } from "lucide-react"
+import { Download, TrendingUp, FileDown, Printer } from "lucide-react"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog"
 
 interface OrderProduct {
   id: string
@@ -46,6 +56,7 @@ interface Order {
 export default function AdminOrdersPage() {
   const { isAdmin, isLoading } = useAuth()
   const router = useRouter()
+  const { toast } = useToast()
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState<string>("ALL")
@@ -62,6 +73,8 @@ export default function AdminOrdersPage() {
       revenue: number
     }>
   } | null>(null)
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
+  const [orderDialogOpen, setOrderDialogOpen] = useState(false)
 
   useEffect(() => {
     if (!isLoading && !isAdmin()) {
@@ -104,19 +117,152 @@ export default function AdminOrdersPage() {
 
   async function updateOrderStatus(orderId: string, status: string) {
     try {
+      // Khi status là COMPLETED hoặc CANCELLED, đảm bảo updatedAt được cập nhật
       const res = await fetch(`/api/orders/${orderId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({ 
+          status,
+          // Force update updatedAt khi thanh toán hoặc hủy
+          ...((status === 'COMPLETED' || status === 'CANCELLED') && { 
+            updatedAt: new Date().toISOString() 
+          })
+        }),
       })
 
       if (!res.ok) throw new Error("Failed to update order")
 
       await loadOrders()
       await loadStats()
+      
+      // Reload selected order nếu đang mở
+      if (selectedOrder && selectedOrder.id === orderId) {
+        const updatedRes = await fetch(`/api/orders/${orderId}`)
+        const updatedData = await updatedRes.json()
+        if (updatedData.success) {
+          setSelectedOrder(updatedData.data)
+        }
+      }
+      
+      toast({
+        title: "Thành công",
+        description: "Đã cập nhật trạng thái đơn hàng.",
+      })
     } catch (error) {
       console.error("Failed to update order:", error)
-      alert("Failed to update order status")
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: "Không thể cập nhật trạng thái đơn hàng.",
+      })
+    }
+  }
+
+  function openOrderDetail(order: Order) {
+    console.log('Opening order detail for:', order.id)
+    setSelectedOrder(order)
+    setOrderDialogOpen(true)
+    console.log('Dialog should open, orderDialogOpen:', orderDialogOpen)
+  }
+
+  function generateOrderInvoiceHTML(order: Order) {
+    return `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="UTF-8">
+          <title>Hóa đơn - Đơn #${order.id.slice(-8)}</title>
+          <style>
+            @media print {
+              body { margin: 0; padding: 20px; font-family: Arial, sans-serif; }
+            }
+            body { font-family: Arial, sans-serif; padding: 20px; }
+            .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #000; padding-bottom: 15px; }
+            .header h1 { margin: 0 0 10px 0; font-size: 24px; }
+            table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            th { background-color: #f2f2f2; font-weight: bold; }
+            .total { text-align: right; margin-top: 20px; font-size: 18px; font-weight: bold; }
+            .info { margin: 15px 0; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>HÓA ĐƠN THANH TOÁN</h1>
+            <p>Mã đơn: #${order.id.slice(-8)}</p>
+            <p>Ngày in: ${new Date().toLocaleString('vi-VN')}</p>
+          </div>
+          
+          <div class="info">
+            <p><strong>Khách hàng:</strong> ${order.user ? (order.user.name || order.user.email) : 'Khách hàng'}</p>
+            ${order.user?.email ? `<p><strong>Email:</strong> ${order.user.email}</p>` : ''}
+            <p><strong>Bàn số:</strong> ${order.tableNumber ? `Bàn ${order.tableNumber}` : 'N/A'}</p>
+            <p><strong>Trạng thái:</strong> ${
+              order.status === 'PENDING' ? 'Chờ xử lý' : 
+              order.status === 'PROCESSING' ? 'Đang xử lý' : 
+              order.status === 'COMPLETED' ? 'Hoàn thành' : 
+              'Đã hủy'
+            }</p>
+            <p><strong>Đặt món lúc:</strong> ${new Date(order.createdAt).toLocaleString('vi-VN')}</p>
+            ${order.updatedAt ? `<p><strong>Thanh toán lúc:</strong> ${new Date(order.updatedAt).toLocaleString('vi-VN')}</p>` : '<p><strong>Thanh toán lúc:</strong> Chưa thanh toán</p>'}
+          </div>
+
+          <table>
+            <thead>
+              <tr style="background-color: #f2f2f2;">
+                <th style="padding: 10px; text-align: left;">Tên món</th>
+                <th style="padding: 10px; text-align: center;">SL</th>
+                <th style="padding: 10px; text-align: right;">Đơn giá</th>
+                <th style="padding: 10px; text-align: right;">Thành tiền</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${order.orderProducts && order.orderProducts.length > 0 ? order.orderProducts.map((op: OrderProduct) => {
+                const itemTotal = (op.product?.price || 0) * op.quantity
+                return `
+                  <tr>
+                    <td style="padding: 8px;">${op.product?.name || "Không xác định"}</td>
+                    <td style="padding: 8px; text-align: center;">${op.quantity}</td>
+                    <td style="padding: 8px; text-align: right;">${(op.product?.price || 0).toLocaleString('vi-VN')}đ</td>
+                    <td style="padding: 8px; text-align: right; font-weight: bold;">${itemTotal.toLocaleString('vi-VN')}đ</td>
+                  </tr>
+                `
+              }).join('') : '<tr><td colspan="4" style="padding: 8px; text-align: center;">Không có món nào</td></tr>'}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colspan="3" style="padding: 8px; text-align: right; font-weight: bold; font-size: 18px; border-top: 2px solid #000;">TỔNG CỘNG:</td>
+                <td style="padding: 8px; text-align: right; font-weight: bold; font-size: 18px; border-top: 2px solid #000;">${order.total.toLocaleString('vi-VN')}đ</td>
+              </tr>
+            </tfoot>
+          </table>
+        </body>
+      </html>
+    `
+  }
+
+  function printOrderInvoice(order: Order) {
+    const invoiceHTML = generateOrderInvoiceHTML(order)
+    const printWindow = window.open('', '_blank')
+    if (printWindow) {
+      printWindow.document.write(invoiceHTML)
+      printWindow.document.close()
+      printWindow.onload = () => {
+        printWindow.print()
+      }
+    }
+  }
+
+  function exportOrderToPDF(order: Order) {
+    const invoiceHTML = generateOrderInvoiceHTML(order)
+    const printWindow = window.open('', '_blank')
+    if (printWindow) {
+      printWindow.document.write(invoiceHTML)
+      printWindow.document.close()
+      printWindow.onload = () => {
+        printWindow.print()
+        // Sau khi in, có thể download PDF bằng cách save từ browser
+      }
     }
   }
 
@@ -154,7 +300,11 @@ export default function AdminOrdersPage() {
     })
 
     if (filteredOrders.length === 0) {
-      alert(`Không có đơn hàng nào trong khoảng thời gian đã chọn (${exportPeriod})`)
+      toast({
+        variant: "destructive",
+        title: "Không có dữ liệu",
+        description: `Không có đơn hàng nào trong khoảng thời gian đã chọn (${exportPeriod}).`,
+      })
       return
     }
 
@@ -479,7 +629,19 @@ export default function AdminOrdersPage() {
               ) : (
                 orders.map((order) => (
                   <TableRow key={order.id}>
-                    <TableCell className="font-medium">{order.id.slice(-8)}</TableCell>
+                    <TableCell>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          openOrderDetail(order)
+                        }}
+                        className="font-medium text-primary hover:underline cursor-pointer"
+                      >
+                        {order.id.slice(-8)}
+                      </button>
+                    </TableCell>
                     <TableCell>
                       {order.user ? (
                         <div className="space-y-1">
@@ -567,6 +729,157 @@ export default function AdminOrdersPage() {
           </Table>
         </Card>
       )}
+
+      {/* Order Detail Dialog */}
+      <Dialog open={orderDialogOpen} onOpenChange={setOrderDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Chi tiết đơn hàng #{selectedOrder?.id.slice(-8)}</DialogTitle>
+            <DialogDescription>
+              Thông tin chi tiết về đơn hàng này
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedOrder && (
+            <div className="space-y-6">
+              {/* Order Info */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-muted-foreground">Khách hàng</p>
+                  <p className="font-semibold">
+                    {selectedOrder.user ? (selectedOrder.user.name || selectedOrder.user.email) : 'Khách hàng'}
+                  </p>
+                  {selectedOrder.user?.email && (
+                    <p className="text-sm text-muted-foreground">{selectedOrder.user.email}</p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-muted-foreground">Bàn số</p>
+                  <p className="font-semibold">
+                    {selectedOrder.tableNumber ? `Bàn ${selectedOrder.tableNumber}` : 'N/A'}
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-muted-foreground">Trạng thái</p>
+                  <Badge className={getStatusColor(selectedOrder.status)}>
+                    {selectedOrder.status === 'PENDING' ? 'Chờ xử lý' : 
+                     selectedOrder.status === 'PROCESSING' ? 'Đang xử lý' : 
+                     selectedOrder.status === 'COMPLETED' ? 'Hoàn thành' : 
+                     'Đã hủy'}
+                  </Badge>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-muted-foreground">Tổng tiền</p>
+                  <p className="font-semibold text-lg text-primary">
+                    {selectedOrder.total.toLocaleString('vi-VN')}đ
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-muted-foreground">Đặt món lúc</p>
+                  <p className="font-semibold">
+                    {new Date(selectedOrder.createdAt).toLocaleString('vi-VN')}
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-muted-foreground">Thanh toán lúc</p>
+                  <p className="font-semibold">
+                    {selectedOrder.updatedAt 
+                      ? new Date(selectedOrder.updatedAt).toLocaleString('vi-VN')
+                      : 'Chưa thanh toán'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Order Products */}
+              <div className="border-t pt-4">
+                <h3 className="font-semibold mb-4">Chi tiết món ăn</h3>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Tên món</TableHead>
+                      <TableHead className="text-center">Số lượng</TableHead>
+                      <TableHead className="text-right">Đơn giá</TableHead>
+                      <TableHead className="text-right">Thành tiền</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {selectedOrder.orderProducts && selectedOrder.orderProducts.length > 0 ? (
+                      selectedOrder.orderProducts.map((op: OrderProduct) => {
+                        const itemTotal = (op.product?.price || 0) * op.quantity
+                        return (
+                          <TableRow key={op.id}>
+                            <TableCell className="font-medium">
+                              {op.product?.name || 'Không xác định'}
+                            </TableCell>
+                            <TableCell className="text-center">{op.quantity}</TableCell>
+                            <TableCell className="text-right">
+                              {(op.product?.price || 0).toLocaleString('vi-VN')}đ
+                            </TableCell>
+                            <TableCell className="text-right font-semibold">
+                              {itemTotal.toLocaleString('vi-VN')}đ
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center text-muted-foreground">
+                          Không có sản phẩm
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    <TableRow>
+                      <TableCell colSpan={3} className="text-right font-bold text-lg">
+                        TỔNG CỘNG:
+                      </TableCell>
+                      <TableCell className="text-right font-bold text-lg text-primary">
+                        {selectedOrder.total.toLocaleString('vi-VN')}đ
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Update Status */}
+              <div className="border-t pt-4">
+                <div className="flex items-center gap-4">
+                  <Label>Cập nhật trạng thái:</Label>
+                  <Select
+                    value={selectedOrder.status}
+                    onValueChange={(value) => updateOrderStatus(selectedOrder.id, value)}
+                  >
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="PENDING">Đang chờ</SelectItem>
+                      <SelectItem value="PROCESSING">Đang xử lý</SelectItem>
+                      <SelectItem value="COMPLETED">Hoàn thành</SelectItem>
+                      <SelectItem value="CANCELLED">Đã hủy</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <div className="flex gap-2 w-full justify-between">
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => selectedOrder && printOrderInvoice(selectedOrder)}>
+                  <Printer className="mr-2 h-4 w-4" />
+                  In hóa đơn
+                </Button>
+                <Button variant="outline" onClick={() => selectedOrder && exportOrderToPDF(selectedOrder)}>
+                  <FileDown className="mr-2 h-4 w-4" />
+                  Xuất PDF
+                </Button>
+              </div>
+              <Button onClick={() => setOrderDialogOpen(false)}>Đóng</Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

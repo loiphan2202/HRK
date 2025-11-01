@@ -25,7 +25,22 @@ export default function LoginPage() {
 
     try {
       await login(email, password)
-      router.push("/")
+      // Check if user is admin and redirect accordingly
+      const savedUser = localStorage.getItem("user")
+      if (savedUser) {
+        try {
+          const user = JSON.parse(savedUser)
+          if (user.role === 'ADMIN') {
+            router.push("/admin")
+          } else {
+            router.push("/")
+          }
+        } catch {
+          router.push("/")
+        }
+      } else {
+        router.push("/")
+      }
       router.refresh()
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Đăng nhập thất bại. Vui lòng thử lại."

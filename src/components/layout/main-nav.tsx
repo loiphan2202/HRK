@@ -124,12 +124,14 @@ export function MainNav() {
                         Cài đặt
                       </Link>
                     </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link href="/orders" className="cursor-pointer">
-                        <User className="mr-2 h-4 w-4" />
-                        Đơn hàng của tôi
-                      </Link>
-                    </DropdownMenuItem>
+                    {!isAdmin() && (
+                      <DropdownMenuItem asChild>
+                        <Link href="/orders" className="cursor-pointer">
+                          <User className="mr-2 h-4 w-4" />
+                          Đơn hàng của tôi
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
                     {user.role === 'ADMIN' && (
                       <>
                         <DropdownMenuSeparator />

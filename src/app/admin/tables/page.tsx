@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { useAuth } from "@/contexts/auth-context"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
+import { useToast } from "@/components/ui/use-toast"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -40,6 +41,7 @@ interface TableData {
 export default function AdminTablesPage() {
   const { isAdmin, isLoading } = useAuth()
   const router = useRouter()
+  const { toast } = useToast()
   const [tables, setTables] = useState<TableData[]>([])
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -78,6 +80,8 @@ export default function AdminTablesPage() {
   const [vat, setVat] = useState(10) // VAT %
   const [discount, setDiscount] = useState(0) // Discount amount
   const [processingPayment, setProcessingPayment] = useState(false)
+  const [orderStatuses, setOrderStatuses] = useState<Record<string, 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'CANCELLED'>>({})
+  const [defaultOrderStatus, setDefaultOrderStatus] = useState<'PENDING' | 'PROCESSING' | 'COMPLETED' | 'CANCELLED'>('COMPLETED')
 
   useEffect(() => {
     if (!isLoading && !isAdmin()) {
@@ -115,9 +119,17 @@ export default function AdminTablesPage() {
       setTableNumber("")
       setDialogOpen(false)
       await loadTables()
+      toast({
+        title: "Thành công",
+        description: "Đã tạo bàn mới thành công.",
+      })
     } catch (error) {
       console.error("Failed to create table:", error)
-      alert("Failed to create table. Table number may already exist.")
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: "Không thể tạo bàn. Số bàn có thể đã tồn tại.",
+      })
     }
   }
 
@@ -132,9 +144,17 @@ export default function AdminTablesPage() {
 
       await res.json()
       await loadTables()
+      toast({
+        title: "Thành công",
+        description: "Đã tạo mã QR thành công.",
+      })
     } catch (error) {
       console.error("Failed to generate QR code:", error)
-      alert("Failed to generate QR code")
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: "Không thể tạo mã QR.",
+      })
     } finally {
       setCreatingQr(null)
     }
@@ -169,6 +189,9 @@ export default function AdminTablesPage() {
   async function openPaymentDialog(table: TableData) {
     setSelectedTable(table)
     await loadTableOrders(table.number)
+    // Initialize order statuses với default status hoặc giữ nguyên status hiện tại
+    const initialStatuses: Record<string, 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'CANCELLED'> = {}
+    setOrderStatuses(initialStatuses)
     setPaymentDialogOpen(true)
   }
 
@@ -177,50 +200,137 @@ export default function AdminTablesPage() {
 
     setProcessingPayment(true)
     try {
-      // Update all orders to COMPLETED
+      // Update orders với status được chọn (hoặc default status nếu không có)
       await Promise.all(
-        tableOrders.map(order =>
-          fetch(`/api/orders/${order.id}`, {
+        tableOrders.map(order => {
+          const statusToSet = orderStatuses[order.id] || defaultOrderStatus
+          return fetch(`/api/orders/${order.id}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ status: "COMPLETED" }),
+            body: JSON.stringify({ status: statusToSet }),
           })
-        )
+        })
       )
 
-      // Update table status to AVAILABLE
-      await fetch(`/api/tables/${selectedTable.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "AVAILABLE" }),
+      // Chỉ update table status to AVAILABLE nếu tất cả orders đều COMPLETED hoặc CANCELLED
+      const allCompletedOrCancelled = tableOrders.every(order => {
+        const status = orderStatuses[order.id] || defaultOrderStatus
+        return status === 'COMPLETED' || status === 'CANCELLED'
       })
+
+      // Chỉ update table to AVAILABLE nếu tất cả orders đã hoàn thành hoặc hủy
+      if (allCompletedOrCancelled) {
+        await fetch(`/api/tables/${selectedTable.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "AVAILABLE" }),
+        })
+      }
+
+      // Lưu statusCounts và statusText trước khi clear state
+      const statusCounts = tableOrders.reduce((acc, order) => {
+        const status = orderStatuses[order.id] || defaultOrderStatus
+        acc[status] = (acc[status] || 0) + 1
+        return acc
+      }, {} as Record<string, number>)
+      
+      const statusText = Object.entries(statusCounts)
+        .map(([status, count]) => {
+          const statusName = status === 'PENDING' ? 'Chờ xử lý' : 
+                           status === 'PROCESSING' ? 'Đang xử lý' : 
+                           status === 'COMPLETED' ? 'Hoàn thành' : 
+                           'Đã hủy'
+          return `${statusName} (${count})`
+        })
+        .join(', ')
 
       setPaymentDialogOpen(false)
       setSelectedTable(null)
       setTableOrders([])
+      setOrderStatuses({})
       await loadTables()
-      alert("Thanh toán thành công!")
+      
+      toast({
+        title: "Cập nhật thành công!",
+        description: `Đã cập nhật trạng thái đơn hàng: ${statusText}.`,
+      })
     } catch (error) {
       console.error("Payment failed:", error)
-      alert("Thanh toán thất bại. Vui lòng thử lại.")
+      toast({
+        variant: "destructive",
+        title: "Thanh toán thất bại",
+        description: "Vui lòng thử lại.",
+      })
     } finally {
       setProcessingPayment(false)
     }
   }
 
   function printInvoice() {
-    window.print()
+    // Tạo window mới với HTML đầy đủ chi tiết món ăn
+    const totals = calculateTotal()
+    const invoiceHTML = generateInvoiceHTML(totals)
+    
+    const printWindow = window.open('', '_blank')
+    if (printWindow) {
+      printWindow.document.write(invoiceHTML)
+      printWindow.document.close()
+      printWindow.onload = () => {
+        printWindow.print()
+      }
+    }
   }
 
-  function exportInvoiceToPDF() {
-    const invoiceContent = document.getElementById('invoice-content')
-    if (!invoiceContent || !selectedTable) return
-
-    // Tính tổng
-    const totals = calculateTotal()
+  function generateInvoiceHTML(totals: { subtotal: number; vatAmount: number; total: number }) {
+    if (!selectedTable) return ''
     
-    // Tạo HTML content cho hóa đơn với đầy đủ thông tin
-    const invoiceHTML = `
+    // Tạo HTML cho chi tiết món ăn từ các orders
+    const orderDetailsHTML = tableOrders.map((order) => {
+      const orderItemsHTML = order.orderProducts && order.orderProducts.length > 0
+        ? order.orderProducts.map((op: { id: string; quantity: number; product?: { id: string; name: string; price: number; description: string | null; image: string | null } | null }) => {
+            const itemTotal = (op.product?.price || 0) * op.quantity
+            return `
+              <tr>
+                <td style="padding: 8px; border: 1px solid #ddd;">${op.product?.name || "Không xác định"}</td>
+                <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${op.quantity}</td>
+                <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${(op.product?.price || 0).toLocaleString('vi-VN')}đ</td>
+                <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold;">${itemTotal.toLocaleString('vi-VN')}đ</td>
+              </tr>
+            `
+          }).join('')
+        : '<tr><td colspan="4" style="padding: 8px; border: 1px solid #ddd; text-align: center;">Không có món nào</td></tr>'
+
+      return `
+        <div class="order-section">
+          <h3 style="margin: 15px 0 10px 0; font-size: 16px; font-weight: bold;">Đơn #${order.id.slice(-8)}</h3>
+          <p style="margin: 5px 0; font-size: 12px; color: #666;">
+            Khách hàng: ${order.user ? (order.user.name || order.user.email) : 'Khách hàng'} | 
+            Đặt món: ${new Date(order.createdAt).toLocaleString('vi-VN')}
+          </p>
+          <table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
+            <thead>
+              <tr style="background-color: #f2f2f2;">
+                <th style="padding: 10px; border: 1px solid #ddd; text-align: left; font-weight: bold;">Tên món</th>
+                <th style="padding: 10px; border: 1px solid #ddd; text-align: center; font-weight: bold;">SL</th>
+                <th style="padding: 10px; border: 1px solid #ddd; text-align: right; font-weight: bold;">Đơn giá</th>
+                <th style="padding: 10px; border: 1px solid #ddd; text-align: right; font-weight: bold;">Thành tiền</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${orderItemsHTML}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colspan="3" style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold;">Tổng đơn:</td>
+                <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold;">${order.total.toLocaleString('vi-VN')}đ</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      `
+    }).join('')
+
+    return `
       <!DOCTYPE html>
       <html>
         <head>
@@ -255,7 +365,9 @@ export default function AdminTablesPage() {
               </div>
             ` : '<p><strong>Khách hàng:</strong> Khách hàng</p>'}
           </div>
-          ${invoiceContent.innerHTML}
+          <div class="order-details">
+            ${orderDetailsHTML}
+          </div>
           <div class="summary">
             <table>
               <tr>
@@ -285,6 +397,16 @@ export default function AdminTablesPage() {
         </body>
       </html>
     `
+  }
+
+  function exportInvoiceToPDF() {
+    if (!selectedTable) return
+
+    // Tính tổng
+    const totals = calculateTotal()
+    
+    // Tạo HTML content cho hóa đơn với đầy đủ thông tin
+    const invoiceHTML = generateInvoiceHTML(totals)
     
     const printWindow = window.open('', '_blank')
     if (printWindow) {
@@ -551,16 +673,54 @@ export default function AdminTablesPage() {
                   <h3 className="font-semibold">Danh sách đơn hàng:</h3>
                 </div>
                 <div className="space-y-4 max-h-96 overflow-y-auto border rounded-md p-4" style={{ maxHeight: 'auto' }}>
-                  {tableOrders.map((order) => (
+                  {tableOrders.map((order) => {
+                    const currentStatus = orderStatuses[order.id] || order.status
+                    return (
                     <div key={order.id} className="border-b pb-4 last:border-0 space-y-3">
                       {/* Order Header */}
                       <div className="flex justify-between items-start">
                         <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
                             <p className="font-bold text-base">Đơn #{order.id.slice(-8)}</p>
-                            <Badge className={order.status === 'PENDING' ? 'bg-yellow-500' : order.status === 'PROCESSING' ? 'bg-blue-500' : 'bg-green-500'}>
-                              {order.status === 'PENDING' ? 'Chờ xử lý' : order.status === 'PROCESSING' ? 'Đang xử lý' : 'Hoàn thành'}
+                            <Badge className={
+                              currentStatus === 'PENDING' ? 'bg-yellow-500' : 
+                              currentStatus === 'PROCESSING' ? 'bg-blue-500' : 
+                              currentStatus === 'COMPLETED' ? 'bg-green-500' : 
+                              'bg-red-500'
+                            }>
+                              {currentStatus === 'PENDING' ? 'Chờ xử lý' : 
+                               currentStatus === 'PROCESSING' ? 'Đang xử lý' : 
+                               currentStatus === 'COMPLETED' ? 'Hoàn thành' : 
+                               'Đã hủy'}
                             </Badge>
+                            {currentStatus !== order.status && (
+                              <Badge variant="outline" className="text-xs">
+                                Trước: {order.status === 'PENDING' ? 'Chờ xử lý' : 
+                                        order.status === 'PROCESSING' ? 'Đang xử lý' : 
+                                        order.status === 'COMPLETED' ? 'Hoàn thành' : 
+                                        'Đã hủy'}
+                              </Badge>
+                            )}
+                          </div>
+                          {/* Status Selector */}
+                          <div className="mt-2 flex items-center gap-2">
+                            <Label className="text-xs">Trạng thái:</Label>
+                            <Select 
+                              value={orderStatuses[order.id] || defaultOrderStatus} 
+                              onValueChange={(value: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'CANCELLED') => {
+                                setOrderStatuses(prev => ({ ...prev, [order.id]: value }))
+                              }}
+                            >
+                              <SelectTrigger className="h-8 text-xs w-32">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="PENDING">Chờ xử lý</SelectItem>
+                                <SelectItem value="PROCESSING">Đang xử lý</SelectItem>
+                                <SelectItem value="COMPLETED">Hoàn thành</SelectItem>
+                                <SelectItem value="CANCELLED">Đã hủy</SelectItem>
+                              </SelectContent>
+                            </Select>
                           </div>
                           
                           {/* Customer Info */}
@@ -569,8 +729,10 @@ export default function AdminTablesPage() {
                             {order.user?.email && <p><span className="font-medium">Email:</span> {order.user.email}</p>}
                             <p><span className="font-medium">Bàn số:</span> {order.tableNumber ? `Bàn ${order.tableNumber}` : 'N/A'}</p>
                             <p><span className="font-medium">Đặt món lúc:</span> {new Date(order.createdAt).toLocaleString('vi-VN')}</p>
-                            {order.updatedAt && order.status === 'COMPLETED' && (
-                              <p><span className="font-medium">Thanh toán lúc:</span> {new Date(order.updatedAt).toLocaleString('vi-VN')}</p>
+                            {order.updatedAt && (currentStatus === 'COMPLETED' || currentStatus === 'CANCELLED') && (
+                              <p><span className="font-medium">
+                                {currentStatus === 'COMPLETED' ? 'Thanh toán lúc:' : 'Hủy lúc:'}
+                              </span> {new Date(order.updatedAt).toLocaleString('vi-VN')}</p>
                             )}
                           </div>
                         </div>
@@ -623,7 +785,8 @@ export default function AdminTablesPage() {
                         </div>
                       )}
                     </div>
-                  ))}
+                    )
+                  })}
                 </div>
               </div>
 
@@ -642,6 +805,38 @@ export default function AdminTablesPage() {
                     </Select>
                   </div>
                   <div className="space-y-2">
+                    <Label>Trạng thái mặc định</Label>
+                    <Select 
+                      value={defaultOrderStatus} 
+                      onValueChange={(value: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'CANCELLED') => {
+                        setDefaultOrderStatus(value)
+                        // Áp dụng cho tất cả orders chưa có status riêng
+                        const newStatuses: Record<string, 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'CANCELLED'> = {}
+                        tableOrders.forEach(order => {
+                          if (!orderStatuses[order.id]) {
+                            newStatuses[order.id] = value
+                          }
+                        })
+                        setOrderStatuses(prev => ({ ...prev, ...newStatuses }))
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="PENDING">Chờ xử lý</SelectItem>
+                        <SelectItem value="PROCESSING">Đang xử lý</SelectItem>
+                        <SelectItem value="COMPLETED">Hoàn thành</SelectItem>
+                        <SelectItem value="CANCELLED">Đã hủy</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      Áp dụng cho tất cả đơn hàng chưa có trạng thái riêng
+                    </p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
                     <Label>VAT (%)</Label>
                     <Input
                       type="number"
@@ -651,15 +846,15 @@ export default function AdminTablesPage() {
                       max="100"
                     />
                   </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>Giảm giá (đ)</Label>
-                  <Input
-                    type="number"
-                    value={discount}
-                    onChange={(e) => setDiscount(Number(e.target.value))}
-                    min="0"
-                  />
+                  <div className="space-y-2">
+                    <Label>Giảm giá (đ)</Label>
+                    <Input
+                      type="number"
+                      value={discount}
+                      onChange={(e) => setDiscount(Number(e.target.value))}
+                      min="0"
+                    />
+                  </div>
                 </div>
 
                 <div className="space-y-2 border-t pt-4">
