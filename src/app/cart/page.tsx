@@ -24,28 +24,33 @@ export default function CartPage() {
   const [selectedTableId, setSelectedTableId] = useState<string>("")
   const [availableTables, setAvailableTables] = useState<Table[]>([])
   const [loadingTables, setLoadingTables] = useState(true)
+  const [hasCheckIn, setHasCheckIn] = useState(false)
+  const [checkedInTableNumber, setCheckedInTableNumber] = useState<number | null>(null)
   const { toast } = useToast()
   const router = useRouter()
 
   useEffect(() => {
+    // Check for existing check-in data on mount
+    try {
+      const checkInData = localStorage.getItem('currentTable')
+      if (checkInData) {
+        const parsed = JSON.parse(checkInData)
+        setHasCheckIn(true)
+        setCheckedInTableNumber(parsed.tableNumber)
+      }
+    } catch {
+      // Ignore
+    }
+    
     loadAvailableTables()
   }, [])
 
   useEffect(() => {
     // Tự động chọn bàn đã check-in khi tables được load
-    if (availableTables.length > 0 && !selectedTableId) {
-      try {
-        const checkInData = localStorage.getItem('currentTable')
-        if (checkInData) {
-          const parsed = JSON.parse(checkInData)
-          // Tìm bàn đã check-in trong danh sách
-          const checkedInTable = availableTables.find(t => t.number === parsed.tableNumber)
-          if (checkedInTable) {
-            setSelectedTableId(checkedInTable.id)
-          }
-        }
-      } catch {
-        // Ignore
+    if (availableTables.length > 0 && !selectedTableId && hasCheckIn && checkedInTableNumber) {
+      const checkedInTable = availableTables.find(t => t.number === checkedInTableNumber)
+      if (checkedInTable) {
+        setSelectedTableId(checkedInTable.id)
       }
     }
   }, [availableTables, selectedTableId])
@@ -90,11 +95,11 @@ export default function CartPage() {
     }
 
     // Kiểm tra bàn có đang check-in không
-    const hasCheckIn = localStorage.getItem('currentTable')
     let checkInData: { tableId?: string; tableNumber?: number; token?: string } | null = null
     try {
-      if (hasCheckIn) {
-        checkInData = JSON.parse(hasCheckIn)
+      const checkInStorage = localStorage.getItem('currentTable')
+      if (checkInStorage) {
+        checkInData = JSON.parse(checkInStorage)
       }
     } catch {
       // Ignore
@@ -246,7 +251,7 @@ export default function CartPage() {
             <Card key={item.productId} className="border-2">
               <CardContent className="p-3 sm:p-4">
                 <div className="flex gap-3 sm:gap-4">
-                  <div className="relative w-20 h-20 sm:w-24 sm:h-24 flex-shrink-0 rounded-md overflow-hidden border">
+                  <div className="relative w-20 h-20 sm:w-24 sm:h-24 shrink-0 rounded-md overflow-hidden border">
                     {item.image ? (
                       <Image
                         src={item.image}
@@ -326,7 +331,9 @@ export default function CartPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label>Chọn bàn *</Label>
+                <Label>
+                  {hasCheckIn && checkedInTableNumber ? "Chọn bàn *" : "Chọn bàn *"}
+                </Label>
                 {loadingTables ? (
                   <div className="grid grid-cols-5 gap-2">
                     {[...Array(10)].map((_, i) => (
@@ -336,114 +343,118 @@ export default function CartPage() {
                 ) : availableTables.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-4">Không có bàn nào</p>
                 ) : (
-                  <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-7 gap-1.5 max-h-60 overflow-y-auto p-1">
-                    {availableTables.map((table) => {
-                      const isAvailable = table.status === 'AVAILABLE'
-                      const isOccupied = table.status === 'OCCUPIED'
-                      const isSelected = selectedTableId === table.id
-                      
-                      // Kiểm tra xem bàn này có đang được check-in không
-                      let isCheckedIn = false
-                      try {
-                        const checkInData = localStorage.getItem('currentTable')
-                        if (checkInData) {
-                          const parsed = JSON.parse(checkInData)
-                          if (parsed.tableNumber === table.number) {
-                            isCheckedIn = true
-                          }
-                        }
-                      } catch {
-                        // Ignore
-                      }
-                      
-                      // Cho phép chọn bàn trống hoặc bàn đã check-in (tự động chọn)
-                      const canSelect = isAvailable || isCheckedIn
-                      
-                      return (
-                        <button
-                          key={table.id}
-                          type="button"
-                          onClick={() => {
-                            if (canSelect) {
-                              // Nếu click vào bàn đã chọn, hủy chọn (trừ khi là bàn đã check-in)
-                              if (isSelected && !isCheckedIn) {
-                                setSelectedTableId("")
-                              } else if (!isSelected) {
-                                setSelectedTableId(table.id)
+                  <>
+                    {hasCheckIn && checkedInTableNumber && (
+                      <div className="mb-2 p-2 bg-blue-50 border border-blue-500 rounded-md text-center dark:bg-blue-950/50 dark:border-blue-400">
+                        <p className="text-xs text-blue-700 dark:text-blue-300 font-medium">
+                          Bạn đã check-in vào Bàn {checkedInTableNumber} - Không thể thay đổi
+                        </p>
+                      </div>
+                    )}
+                    <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-7 gap-1.5 max-h-60 overflow-y-auto p-1">
+                      {availableTables.map((table) => {
+                        const isAvailable = table.status === 'AVAILABLE'
+                        const isOccupied = table.status === 'OCCUPIED'
+                        const isSelected = selectedTableId === table.id
+                        const isCheckedInTable = hasCheckIn && checkedInTableNumber === table.number
+                        
+                        // Nếu đã check-in, disable tất cả các bàn khác; nếu chưa check-in, chỉ cho phép chọn bàn AVAILABLE
+                        const isClickable = hasCheckIn 
+                          ? isCheckedInTable // Nếu đã check-in, chỉ có thể click vào bàn đã check-in
+                          : isAvailable // Nếu chưa check-in, có thể chọn bàn AVAILABLE
+                        
+                        return (
+                          <button
+                            key={table.id}
+                            type="button"
+                            onClick={() => {
+                              if (isClickable) {
+                                if (isSelected && !isCheckedInTable) {
+                                  setSelectedTableId("")
+                                } else if (!isSelected) {
+                                  setSelectedTableId(table.id)
+                                }
                               }
+                            }}
+                            disabled={!isClickable}
+                            className={`
+                              aspect-square border-2 rounded-md transition-all duration-200
+                              flex flex-col items-center justify-center font-semibold text-sm
+                              ${isSelected && isCheckedInTable
+                                ? 'border-blue-500 bg-blue-100 scale-105 shadow-lg ring-2 ring-blue-200 dark:bg-blue-900 dark:border-blue-400' 
+                                : isSelected 
+                                ? 'border-primary bg-primary/10 scale-105 shadow-lg ring-2 ring-primary/20' 
+                                : isCheckedInTable
+                                ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/50 dark:border-blue-400'
+                                : isAvailable
+                                ? 'border-green-500 bg-green-50 hover:bg-green-100 hover:scale-105 cursor-pointer dark:bg-green-950/50 dark:border-green-400'
+                                : isOccupied
+                                ? 'border-red-500 bg-red-50 cursor-not-allowed opacity-60 dark:bg-red-950/50 dark:border-red-400'
+                                : 'border-yellow-500 bg-yellow-50 cursor-not-allowed opacity-60 dark:bg-yellow-950/50 dark:border-yellow-400'
+                              }
+                              ${!isClickable && !isSelected ? 'opacity-50 cursor-not-allowed' : ''}
+                            `}
+                            title={
+                              isCheckedInTable
+                                ? `Bàn ${table.number} - Đã check-in`
+                                : isAvailable 
+                                ? `Bàn ${table.number} - Trống` 
+                                : isOccupied 
+                                ? `Bàn ${table.number} - Đang sử dụng` 
+                                : `Bàn ${table.number} - Đã đặt trước`
                             }
-                          }}
-                          disabled={!canSelect}
-                          className={`
-                            aspect-square border-2 rounded-md transition-all duration-200
-                            flex flex-col items-center justify-center font-semibold text-sm
-                            ${isSelected 
-                              ? 'border-primary bg-primary/10 scale-105 shadow-lg ring-2 ring-primary/20' 
-                              : isCheckedIn
-                              ? 'border-blue-500 bg-blue-50 hover:bg-blue-100 hover:scale-105 cursor-pointer dark:bg-blue-950/50 dark:border-blue-400'
-                              : canSelect
-                              ? 'border-green-500 bg-green-50 hover:bg-green-100 hover:scale-105 cursor-pointer dark:bg-green-950/50 dark:border-green-400'
-                              : isOccupied
-                              ? 'border-red-500 bg-red-50 cursor-not-allowed opacity-60 dark:bg-red-950/50 dark:border-red-400'
-                              : 'border-yellow-500 bg-yellow-50 cursor-not-allowed opacity-60 dark:bg-yellow-950/50 dark:border-yellow-400'
-                            }
-                          `}
-                          title={
-                            isCheckedIn
-                              ? `Bàn ${table.number} - Đã check-in`
-                              : isAvailable 
-                              ? `Bàn ${table.number} - Trống` 
-                              : isOccupied 
-                              ? `Bàn ${table.number} - Đang sử dụng` 
-                              : `Bàn ${table.number} - Đã đặt trước`
-                          }
-                        >
-                          <span className={`
-                            text-base font-bold
-                            ${isSelected 
-                              ? 'text-primary' 
-                              : canSelect 
-                              ? 'text-green-700 dark:text-green-300' 
-                              : isCheckedIn
-                              ? 'text-blue-700 dark:text-blue-300'
-                              : 'text-red-700 dark:text-red-300'
-                            }
-                          `}>
-                            {table.number}
-                          </span>
-                          {isCheckedIn && isSelected && (
-                            <span className="text-xs mt-1 opacity-75 text-blue-700 dark:text-blue-300">
-                              Đã check-in
+                          >
+                            <span className={`
+                              text-base font-bold
+                              ${isSelected && isCheckedInTable
+                                ? 'text-blue-700 dark:text-blue-300'
+                                : isSelected 
+                                ? 'text-primary' 
+                                : isCheckedInTable
+                                ? 'text-blue-600 dark:text-blue-400'
+                                : isAvailable
+                                ? 'text-green-700 dark:text-green-300' 
+                                : 'text-red-700 dark:text-red-300'
+                              }
+                            `}>
+                              {table.number}
                             </span>
-                          )}
-                          {!canSelect && !isCheckedIn && (
-                            <span className="text-xs mt-1 opacity-75">
-                              {isOccupied ? 'Đang dùng' : 'Đã đặt'}
-                            </span>
-                          )}
-                        </button>
-                      )
-                    })}
-                  </div>
+                            {isCheckedInTable && isSelected && (
+                              <span className="text-xs mt-1 opacity-75 text-blue-600 dark:text-blue-400">
+                                Đã check-in
+                              </span>
+                            )}
+                            {!isAvailable && !isCheckedInTable && (
+                              <span className="md:hidden text-xs mt-1 opacity-75">
+                                {isOccupied ? 'Đang dùng' : 'Đã đặt'}
+                              </span>
+                            )}
+                          </button>
+                        )
+                      })}
+                    </div>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground flex flex-wrap gap-x-2 gap-y-1">
+                      {hasCheckIn && checkedInTableNumber && (
+                        <span className="flex items-center gap-1">
+                          <span className="inline-block w-2.5 h-2.5 sm:w-3 sm:h-3 bg-blue-500 rounded"></span>
+                          <span className="hidden sm:inline">Đã check-in</span>
+                        </span>
+                      )}
+                      <span className="flex items-center gap-1">
+                        <span className="inline-block w-2.5 h-2.5 sm:w-3 sm:h-3 bg-green-500 rounded"></span>
+                        <span className="hidden sm:inline">Trống</span>
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <span className="inline-block w-2.5 h-2.5 sm:w-3 sm:h-3 bg-red-500 rounded"></span>
+                        <span className="hidden sm:inline">Đang dùng</span>
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <span className="inline-block w-2.5 h-2.5 sm:w-3 sm:h-3 bg-yellow-500 rounded"></span>
+                        <span className="hidden sm:inline">Đã đặt</span>
+                      </span>
+                    </p>
+                  </>
                 )}
-                <p className="text-[10px] sm:text-xs text-muted-foreground flex flex-wrap gap-x-2 gap-y-1">
-                  <span className="flex items-center gap-1">
-                    <span className="inline-block w-2.5 h-2.5 sm:w-3 sm:h-3 bg-green-500 rounded"></span>
-                    <span className="hidden sm:inline">Trống</span>
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <span className="inline-block w-2.5 h-2.5 sm:w-3 sm:h-3 bg-blue-500 rounded"></span>
-                    <span className="hidden sm:inline">Đã check-in</span>
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <span className="inline-block w-2.5 h-2.5 sm:w-3 sm:h-3 bg-red-500 rounded"></span>
-                    <span className="hidden sm:inline">Đang dùng</span>
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <span className="inline-block w-2.5 h-2.5 sm:w-3 sm:h-3 bg-yellow-500 rounded"></span>
-                    <span className="hidden sm:inline">Đã đặt</span>
-                  </span>
-                </p>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">
@@ -463,25 +474,7 @@ export default function CartPage() {
                 className="w-full"
                 size="lg"
                 onClick={handleCheckout}
-                disabled={isCheckingOut || !selectedTableId || (() => {
-                  const selectedTable = availableTables.find(t => t.id === selectedTableId)
-                  if (!selectedTable) return true
-                  
-                  // Cho phép đặt món nếu bàn AVAILABLE hoặc đã check-in
-                  try {
-                    const checkInData = localStorage.getItem('currentTable')
-                    if (checkInData) {
-                      const parsed = JSON.parse(checkInData)
-                      if (parsed.tableNumber === selectedTable.number) {
-                        return false // Cho phép đặt món với bàn đã check-in
-                      }
-                    }
-                  } catch {
-                    // Ignore
-                  }
-                  
-                  return selectedTable.status !== 'AVAILABLE'
-                })()}
+                disabled={isCheckingOut || !selectedTableId}
               >
                 {isCheckingOut ? "Đang xử lý..." : "Đặt món"}
               </Button>

@@ -9,6 +9,7 @@ import { useCart } from "@/contexts/cart-context"
 import { useAuth } from "@/contexts/auth-context"
 import { useState } from "react"
 import { Badge } from "@/components/ui/badge"
+import { useToast } from "@/components/ui/use-toast"
 
 interface ProductCardProps {
   id: string
@@ -29,10 +30,22 @@ export function ProductCard({ id, name, description, price, image, stock, catego
   const { addToCart } = useCart()
   const { isAdmin } = useAuth()
   const [isAdding, setIsAdding] = useState(false)
+  const { toast } = useToast()
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
+    
+    // Check if user has selected a table or checked in
+    const hasCheckIn = localStorage.getItem('currentTable')
+    if (!hasCheckIn) {
+      toast({
+        variant: "destructive",
+        title: "Chưa chọn bàn",
+        description: "Vui lòng quét mã QR hoặc chọn bàn trước khi thêm món!",
+      })
+      return
+    }
     
     // Chỉ chặn nếu stock được theo dõi và bằng 0
     if (stock !== null && stock !== -1 && stock === 0) return

@@ -8,6 +8,7 @@ import { CartProvider } from "@/contexts/cart-context";
 import { AuthProvider } from "@/contexts/auth-context";
 import { ensureAdminExists } from "@/lib/init-admin";
 import { Toaster } from "@/components/ui/toaster";
+import { ClearTableListener } from "@/components/clear-table-listener";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -37,6 +38,7 @@ export default async function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-background font-sans antialiased`}>
+        <ClearTableListener />
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

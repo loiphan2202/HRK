@@ -55,7 +55,7 @@ export function MainNav() {
   }
 
   return (
-    <div className="border-b sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <div className="border-b sticky top-0 z-50 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
       <div className="container max-w-7xl mx-auto flex h-16 items-center px-4">
         <div className="flex items-center space-x-2 md:space-x-4 lg:space-x-6">
           {/* Mobile Menu Button */}
@@ -223,14 +223,6 @@ export function MainNav() {
                         Cài đặt
                       </Link>
                     </DropdownMenuItem>
-                    {!isAdmin() && (
-                      <DropdownMenuItem asChild>
-                        <Link href="/orders" className="cursor-pointer">
-                          <User className="mr-2 h-4 w-4" />
-                          Đơn hàng của tôi
-                        </Link>
-                      </DropdownMenuItem>
-                    )}
                     {user.role === 'ADMIN' && (
                       <>
                         <DropdownMenuSeparator />

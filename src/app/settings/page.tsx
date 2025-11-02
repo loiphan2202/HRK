@@ -122,13 +122,13 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="flex flex-col space-y-8 w-full max-w-2xl mx-auto">
-          <div>
-            <h1 className="text-4xl font-bold tracking-tight">Cài đặt</h1>
-            <p className="text-muted-foreground mt-2">
-              Quản lý cài đặt tài khoản và tùy chọn của bạn
-            </p>
-          </div>
+    <div className="flex flex-col space-y-6 sm:space-y-8 w-full max-w-2xl mx-auto px-4 sm:px-6 lg:px-0">
+      <div>
+        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight">Cài đặt</h1>
+        <p className="text-sm sm:text-base text-muted-foreground mt-2">
+          Quản lý cài đặt tài khoản và tùy chọn của bạn
+        </p>
+      </div>
 
       <Card>
         <CardHeader>

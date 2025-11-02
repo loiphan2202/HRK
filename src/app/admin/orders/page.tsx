@@ -504,7 +504,7 @@ export default function AdminOrdersPage() {
       </div>
 
       {/* Thống kê */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -570,29 +570,33 @@ export default function AdminOrdersPage() {
       {stats && stats.topProducts && stats.topProducts.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Top 10 sản phẩm bán chạy</CardTitle>
+            <CardTitle className="text-lg sm:text-xl">Top 10 sản phẩm bán chạy</CardTitle>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>STT</TableHead>
-                  <TableHead>Tên sản phẩm</TableHead>
-                  <TableHead className="text-right">Số lượng bán</TableHead>
-                  <TableHead className="text-right">Doanh thu</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {stats.topProducts.map((product, index: number) => (
-                  <TableRow key={product.productId}>
-                    <TableCell>{index + 1}</TableCell>
-                    <TableCell className="font-medium">{product.productName}</TableCell>
-                    <TableCell className="text-right">{product.quantity}</TableCell>
-                    <TableCell className="text-right">{product.revenue.toLocaleString('vi-VN')}đ</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <div className="overflow-x-auto -mx-4 sm:mx-0">
+              <div className="inline-block min-w-full align-middle px-4 sm:px-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="min-w-[50px]">STT</TableHead>
+                      <TableHead className="min-w-[200px]">Tên sản phẩm</TableHead>
+                      <TableHead className="text-right min-w-[120px]">Số lượng bán</TableHead>
+                      <TableHead className="text-right min-w-[150px]">Doanh thu</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {stats.topProducts.map((product, index: number) => (
+                      <TableRow key={product.productId}>
+                        <TableCell>{index + 1}</TableCell>
+                        <TableCell className="font-medium">{product.productName}</TableCell>
+                        <TableCell className="text-right">{product.quantity}</TableCell>
+                        <TableCell className="text-right">{product.revenue.toLocaleString('vi-VN')}đ</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -605,22 +609,22 @@ export default function AdminOrdersPage() {
         </Card>
       ) : (
         <Card>
-          <div className="overflow-x-auto -mx-4 sm:mx-0">
+          <div className="overflow-auto max-h-[calc(100vh-520px)] -mx-4 sm:mx-0">
             <div className="inline-block min-w-full align-middle px-4 sm:px-0">
               <Table>
-                <TableHeader>
-              <TableRow>
-                <TableHead>Mã đơn</TableHead>
-                <TableHead>Khách hàng</TableHead>
-                <TableHead>Bàn</TableHead>
-                <TableHead>Chi tiết món ăn</TableHead>
-                <TableHead>Tổng tiền</TableHead>
-                <TableHead>Trạng thái</TableHead>
-                <TableHead>Đặt món lúc</TableHead>
-                <TableHead>Thanh toán lúc</TableHead>
-                <TableHead>Hành động</TableHead>
-              </TableRow>
-            </TableHeader>
+                <TableHeader className="sticky top-0 bg-background z-10">
+                  <TableRow>
+                    <TableHead className="min-w-[100px]">Mã đơn</TableHead>
+                    <TableHead className="min-w-[150px]">Khách hàng</TableHead>
+                    <TableHead className="min-w-[80px]">Bàn</TableHead>
+                    <TableHead className="min-w-[200px]">Chi tiết món ăn</TableHead>
+                    <TableHead className="min-w-[100px]">Tổng tiền</TableHead>
+                    <TableHead className="min-w-[120px]">Trạng thái</TableHead>
+                    <TableHead className="min-w-[120px] hidden lg:table-cell">Đặt món lúc</TableHead>
+                    <TableHead className="min-w-[120px] hidden lg:table-cell">Thanh toán lúc</TableHead>
+                    <TableHead className="min-w-[140px]">Hành động</TableHead>
+                  </TableRow>
+                </TableHeader>
             <TableBody>
               {orders.length === 0 ? (
                 <TableRow>
@@ -692,13 +696,13 @@ export default function AdminOrdersPage() {
                         {order.status === 'PENDING' ? 'Chờ xử lý' : order.status === 'PROCESSING' ? 'Đang xử lý' : order.status === 'COMPLETED' ? 'Hoàn thành' : 'Đã hủy'}
                       </Badge>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden lg:table-cell">
                       <div className="text-sm">
                         <p>{new Date(order.createdAt).toLocaleDateString('vi-VN')}</p>
                         <p className="text-xs text-muted-foreground">{new Date(order.createdAt).toLocaleTimeString('vi-VN')}</p>
                       </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden lg:table-cell">
                       {order.updatedAt && order.status === 'COMPLETED' ? (
                         <div className="text-sm">
                           <p>{new Date(order.updatedAt).toLocaleDateString('vi-VN')}</p>

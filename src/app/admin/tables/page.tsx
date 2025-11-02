@@ -8,6 +8,9 @@ import { useToast } from "@/components/ui/use-toast"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Badge } from "@/components/ui/badge"
+import { Plus, QrCode, CreditCard, Printer, FileDown, Edit2, Trash2, MoreHorizontal } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
   Table,
   TableBody,
@@ -16,9 +19,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
-import { Plus, QrCode, CreditCard, Printer, FileDown } from "lucide-react"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
   Dialog,
   DialogContent,
@@ -28,6 +28,23 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Copy } from "lucide-react"
 
 interface TableData {
@@ -51,6 +68,9 @@ export default function AdminTablesPage() {
   const [selectedQr, setSelectedQr] = useState<{ image: string; url: string; tableNumber: number } | null>(null)
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false)
   const [selectedTable, setSelectedTable] = useState<TableData | null>(null)
+  const [editDialog, setEditDialog] = useState<{ open: boolean; table: TableData | null }>({ open: false, table: null })
+  const [editTableNumber, setEditTableNumber] = useState("")
+  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; table: TableData | null }>({ open: false, table: null })
   const [tableOrders, setTableOrders] = useState<Array<{
     id: string
     total: number
@@ -129,6 +149,57 @@ export default function AdminTablesPage() {
         variant: "destructive",
         title: "Lỗi",
         description: "Không thể tạo bàn. Số bàn có thể đã tồn tại.",
+      })
+    }
+  }
+
+  async function updateTable(id: string, number: number) {
+    try {
+      const res = await fetch(`/api/tables/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ number }),
+      })
+
+      if (!res.ok) throw new Error("Failed to update table")
+
+      setEditDialog({ open: false, table: null })
+      setEditTableNumber("")
+      await loadTables()
+      toast({
+        title: "Thành công",
+        description: "Đã cập nhật bàn thành công.",
+      })
+    } catch (error) {
+      console.error("Failed to update table:", error)
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: "Không thể cập nhật bàn. Số bàn có thể đã tồn tại.",
+      })
+    }
+  }
+
+  async function deleteTable(id: string) {
+    try {
+      const res = await fetch(`/api/tables/${id}`, {
+        method: "DELETE",
+      })
+
+      if (!res.ok) throw new Error("Failed to delete table")
+
+      setDeleteDialog({ open: false, table: null })
+      await loadTables()
+      toast({
+        title: "Thành công",
+        description: "Đã xóa bàn thành công.",
+      })
+    } catch (error) {
+      console.error("Failed to delete table:", error)
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: "Không thể xóa bàn.",
       })
     }
   }
@@ -498,98 +569,127 @@ export default function AdminTablesPage() {
           </CardContent>
         </Card>
       ) : (
-        <Card>
+        <Card className="overflow-hidden">
           <div className="overflow-x-auto -mx-4 sm:mx-0">
             <div className="inline-block min-w-full align-middle px-4 sm:px-0">
               <Table>
-                <TableHeader>
-              <TableRow>
-                <TableHead>Số bàn</TableHead>
-                <TableHead>Trạng thái</TableHead>
-                <TableHead>Mã QR</TableHead>
-                <TableHead>Hành động</TableHead>
-                <TableHead></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {tables.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={4} className="text-center text-muted-foreground">
-                    Không tìm thấy bàn
-                  </TableCell>
-                </TableRow>
-              ) : (
-                tables.map((table) => (
-                  <TableRow key={table.id}>
-                    <TableCell className="font-medium">Bàn {table.number}</TableCell>
-                    <TableCell>
-                      <Badge className={getStatusColor(table.status)}>
-                        {table.status === 'AVAILABLE' ? 'Trống' : 
-                         table.status === 'OCCUPIED' ? 'Đang dùng' : 
-                         'Đã đặt'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {table.qrCode ? (
-                        <div className="flex items-center gap-2">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={table.qrCode}
-                            alt={`QR Code for Table ${table.number}`}
-                            width={64}
-                            height={64}
-                            className="object-contain border rounded cursor-pointer hover:opacity-80 transition-opacity"
-                            onClick={() => {
-                              if (table.token && table.qrCode) {
-                                // Construct URL from current origin
-                                const url = `${window.location.origin}/check-in?token=${table.token}`;
-                                setSelectedQr({
-                                  image: table.qrCode,
-                                  url: url,
-                                  tableNumber: table.number,
-                                });
-                                setQrDialogOpen(true);
-                              }
-                            }}
-                          />
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground">Chưa tạo</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => generateQrCode(table.id)}
-                          disabled={creatingQr === table.id}
-                        >
-                          <QrCode className="mr-2 h-4 w-4" />
-                          {creatingQr === table.id ? "Đang tạo..." : "Tạo QR"}
-                        </Button>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        {table.status === 'OCCUPIED' && (
-                          <Button
-                            variant="default"
-                            size="sm"
-                            onClick={() => openPaymentDialog(table)}
-                          >
-                            <CreditCard className="mr-2 h-4 w-4" />
-                            Thanh toán
-                          </Button>
-                        )}
-                      </div>
-                    </TableCell>
+                <TableHeader className="sticky top-0 bg-background z-10">
+                  <TableRow>
+                    <TableHead className="min-w-[100px]">Số bàn</TableHead>
+                    <TableHead className="min-w-[120px]">Trạng thái</TableHead>
+                    <TableHead className="min-w-[100px]">Mã QR</TableHead>
+                    <TableHead className="min-w-[100px] text-center">QR Code</TableHead>
+                    <TableHead className="min-w-[100px] text-center">Chi tiết</TableHead>
+                    <TableHead className="min-w-[80px] text-center">Hành động</TableHead>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-          </div>
+                </TableHeader>
+                <TableBody>
+                  {tables.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center text-muted-foreground">
+                        Không tìm thấy bàn
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    tables.map((table) => (
+                      <TableRow key={table.id}>
+                        <TableCell className="font-medium">Bàn {table.number}</TableCell>
+                        <TableCell>
+                          <Badge className={getStatusColor(table.status)}>
+                            {table.status === 'AVAILABLE' ? 'Trống' : 
+                             table.status === 'OCCUPIED' ? 'Đang dùng' : 
+                             'Đã đặt'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {table.qrCode ? (
+                            <div className="flex items-center gap-2">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={table.qrCode}
+                                alt={`QR Code for Table ${table.number}`}
+                                width={48}
+                                height={48}
+                                className="object-contain border rounded cursor-pointer hover:opacity-80 transition-opacity hidden sm:block"
+                                onClick={() => {
+                                  if (table.token && table.qrCode) {
+                                    // Construct URL from current origin
+                                    const url = `${window.location.origin}/check-in?token=${table.token}`;
+                                    setSelectedQr({
+                                      image: table.qrCode,
+                                      url: url,
+                                      tableNumber: table.number,
+                                    });
+                                    setQrDialogOpen(true);
+                                  }
+                                }}
+                              />
+                              <span className="text-xs sm:hidden">✓</span>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">Chưa tạo</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => generateQrCode(table.id)}
+                            disabled={creatingQr === table.id}
+                            className="text-xs whitespace-nowrap"
+                          >
+                            <QrCode className="mr-1 h-3 w-3" />
+                            {creatingQr === table.id ? "..." : "QR"}
+                          </Button>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {table.status === 'OCCUPIED' && (
+                            <Button
+                              variant="default"
+                              size="sm"
+                              onClick={() => openPaymentDialog(table)}
+                              className="text-xs whitespace-nowrap"
+                            >
+                              <CreditCard className="mr-1 h-3 w-3" />
+                              Chi tiết
+                            </Button>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+                                <MoreHorizontal className="h-4 w-4" />
+                                <span className="sr-only">Menu</span>
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuLabel>Hành động</DropdownMenuLabel>
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  setEditDialog({ open: true, table })
+                                  setEditTableNumber(table.number.toString())
+                                }}
+                              >
+                                <Edit2 className="mr-2 h-4 w-4" />
+                                Chỉnh sửa
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                className="text-red-600"
+                                onClick={() => setDeleteDialog({ open: true, table })}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Xóa
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           </div>
         </Card>
       )}
@@ -915,6 +1015,81 @@ export default function AdminTablesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Edit Dialog */}
+      <Dialog open={editDialog.open} onOpenChange={(open) => setEditDialog({ open, table: null })}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Chỉnh sửa bàn</DialogTitle>
+            <DialogDescription>
+              Cập nhật thông tin bàn
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="editTableNumber">Số bàn</Label>
+              <Input
+                id="editTableNumber"
+                type="number"
+                placeholder="Nhập số bàn"
+                value={editTableNumber}
+                onChange={(e) => setEditTableNumber(e.target.value)}
+                min="1"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setEditDialog({ open: false, table: null })
+                setEditTableNumber("")
+              }}
+            >
+              Hủy
+            </Button>
+            <Button
+              onClick={() => {
+                if (editDialog.table) {
+                  updateTable(editDialog.table.id, parseInt(editTableNumber))
+                }
+              }}
+              disabled={!editTableNumber}
+            >
+              Lưu
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Dialog */}
+      <AlertDialog
+        open={deleteDialog.open}
+        onOpenChange={(open) => setDeleteDialog({ open, table: null })}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Bạn có chắc chắn?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Hành động này không thể hoàn tác. Bàn sẽ bị xóa vĩnh viễn.
+              {deleteDialog.table && deleteDialog.table.qrCode && " Mã QR của bàn này cũng sẽ bị xóa."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Hủy</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 text-red-50 hover:bg-red-700"
+              onClick={() => {
+                if (deleteDialog.table) {
+                  deleteTable(deleteDialog.table.id)
+                }
+              }}
+            >
+              Xóa
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
