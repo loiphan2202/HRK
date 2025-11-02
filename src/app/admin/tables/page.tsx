@@ -9,7 +9,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import { Plus, QrCode, CreditCard, Printer, FileDown, Edit2, Trash2, MoreHorizontal } from "lucide-react"
+import { Plus, QrCode, CreditCard, Printer, FileDown, Edit2, Trash2, MoreHorizontal, Download } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
   Table,
@@ -727,7 +727,10 @@ export default function AdminTablesPage() {
                       size="icon"
                       onClick={() => {
                         navigator.clipboard.writeText(selectedQr.url);
-                        // You could add a toast notification here
+                        toast({
+                          title: "Đã sao chép",
+                          description: "URL đã được sao chép vào clipboard",
+                        });
                       }}
                     >
                       <Copy className="h-4 w-4" />
@@ -738,6 +741,26 @@ export default function AdminTablesPage() {
             )}
           </div>
           <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (selectedQr) {
+                  const link = document.createElement('a');
+                  link.href = selectedQr.image;
+                  link.download = `QR-Ban-${selectedQr.tableNumber}.png`;
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                  toast({
+                    title: "Đã tải xuống",
+                    description: "Mã QR đã được tải xuống thành công",
+                  });
+                }
+              }}
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Tải mã QR
+            </Button>
             <Button onClick={() => setQrDialogOpen(false)}>Đóng</Button>
           </DialogFooter>
         </DialogContent>
