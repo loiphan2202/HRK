@@ -48,11 +48,11 @@ export default async function RootLayout({
           <AuthProvider>
             <CartProvider>
               <div className="relative flex min-h-screen flex-col">
-            <MainNav />
+                <MainNav />
                 <main className="flex-1 container py-4 sm:py-6 max-w-7xl mx-auto w-full px-0">
-              {children}
-            </main>
-          </div>
+                  {children}
+                </main>
+              </div>
               <Toaster />
             </CartProvider>
           </AuthProvider>

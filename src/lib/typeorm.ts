@@ -21,15 +21,13 @@ export async function getDataSource(): Promise<DataSource> {
   }
 
   // Create new DataSource if not exists or not initialized
-  if (!dataSource) {
-    dataSource = new DataSource({
-      type: 'mongodb',
-      url: databaseUrl,
-      entities: [User, Category, Product, ProductCategory, Table, Order, OrderProduct],
-      synchronize: false, // Don't auto-sync in production
-      logging: process.env.NODE_ENV === 'development',
-    });
-  }
+  dataSource ??= new DataSource({
+    type: 'mongodb',
+    url: databaseUrl,
+    entities: [User, Category, Product, ProductCategory, Table, Order, OrderProduct],
+    synchronize: false, // Don't auto-sync in production
+    logging: process.env.NODE_ENV === 'development',
+  });
 
   // Ensure initialization
   if (!dataSource.isInitialized) {

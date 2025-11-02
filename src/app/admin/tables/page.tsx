@@ -610,7 +610,7 @@ export default function AdminTablesPage() {
                                 alt={`QR Code for Table ${table.number}`}
                                 width={48}
                                 height={48}
-                                className="object-contain border rounded cursor-pointer hover:opacity-80 transition-opacity hidden sm:block"
+                                className="object-contain border rounded cursor-pointer hover:opacity-80 transition-opacity block"
                                 onClick={() => {
                                   if (table.token && table.qrCode) {
                                     // Construct URL from current origin
@@ -624,7 +624,6 @@ export default function AdminTablesPage() {
                                   }
                                 }}
                               />
-                              <span className="text-xs sm:hidden">✓</span>
                             </div>
                           ) : (
                             <span className="text-xs text-muted-foreground">Chưa tạo</span>
