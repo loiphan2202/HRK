@@ -18,7 +18,7 @@ export abstract class BaseRepositoryTypeORM<T extends ObjectLiteral> {
     const repository = await this.getRepository();
     const objectId = typeof id === 'string' ? new ObjectId(id) : id;
     // For MongoDB, we use _id instead of id
-    return await repository.findOne({ where: { _id: objectId } as any }) || 
+    return await repository.findOne({ where: { _id: objectId } as any }) ?? 
            await repository.findOne({ where: { id: objectId } as any });
   }
 

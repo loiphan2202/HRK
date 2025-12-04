@@ -1,40 +1,23 @@
 "use client"
 
-import { useAuth } from "@/contexts/auth-context"
-import { useRouter } from "next/navigation"
-import { useEffect } from "react"
 import Link from "next/link"
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Package2, ShoppingCart, Table, Tags } from "lucide-react"
+import { AdminGuard } from "@/components/auth/admin-guard"
 
 export default function AdminPage() {
-  const { user, isAdmin, isLoading } = useAuth()
-  const router = useRouter()
-
-  useEffect(() => {
-    if (!isLoading && !isAdmin()) {
-      router.push("/")
-    }
-  }, [user, isLoading, isAdmin, router])
-
-  if (isLoading || !isAdmin()) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <p className="text-muted-foreground">Đang tải...</p>
-      </div>
-    )
-  }
 
   return (
-    <div className="flex flex-col space-y-6 sm:space-y-8 w-full px-4 sm:px-6 lg:px-0">
-      <div>
-        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight">Trang quản trị</h1>
-        <p className="text-sm sm:text-base text-muted-foreground mt-2">
-          Quản lý sản phẩm, đơn hàng và bàn
-        </p>
-      </div>
+    <AdminGuard>
+      <div className="flex flex-col space-y-6 sm:space-y-8 w-full px-4 sm:px-6 lg:px-0">
+        <div>
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight">Trang quản trị</h1>
+          <p className="text-sm sm:text-base text-muted-foreground mt-2">
+            Quản lý sản phẩm, đơn hàng và bàn
+          </p>
+        </div>
 
-      <div className="grid gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3">
         <Link href="/admin/products">
           <Card className="hover:shadow-lg transition-shadow cursor-pointer">
             <CardHeader>
@@ -92,6 +75,7 @@ export default function AdminPage() {
         </Link>
       </div>
     </div>
+    </AdminGuard>
   )
 }
 

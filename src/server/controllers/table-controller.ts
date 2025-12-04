@@ -38,7 +38,7 @@ export class TableController {
       const number = searchParams.get('number');
       
       if (number) {
-        const table = await this.service.findByNumber(parseInt(number));
+        const table = await this.service.findByNumber(Number.parseInt(number));
         return NextResponse.json({ success: true, data: table ? serializeEntity(table) : null });
       }
 

@@ -1,4 +1,5 @@
 import { OrderController } from '@/server/controllers/order-controller';
+import { requireAdmin } from '@/server/middleware/auth';
 
 const controller = new OrderController();
 
@@ -8,6 +9,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 }
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  // Require admin authentication
+  const authError = await requireAdmin(request);
+  if (authError) {
+    return authError;
+  }
+  
   const { id } = await params;
   return controller.update(request, id);
 }

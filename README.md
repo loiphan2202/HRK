@@ -311,7 +311,7 @@ npm install
 
 ---
 
-### Bước 3: Cấu hình Database
+### Bước 3: Cấu hình Database và Cloudinary
 
 Tạo file `.env` trong thư mục gốc với nội dung:
 
@@ -319,7 +319,20 @@ Tạo file `.env` trong thư mục gốc với nội dung:
 DATABASE_URL=mongodb://localhost:27017/hrk
 JWT_SECRET=your-secret-key-here
 NODE_ENV=development (tùy chọn)
+
+# Cloudinary Configuration (cho upload ảnh)
+CLOUDINARY_CLOUD_NAME=your_cloudinary_cloud_name
+CLOUDINARY_API_KEY=your_cloudinary_api_key
+CLOUDINARY_API_SECRET=your_cloudinary_api_secret
 ```
+
+**Cách lấy thông tin Cloudinary:**
+1. Đăng ký tài khoản tại https://cloudinary.com (miễn phí)
+2. Vào Dashboard → Settings
+3. Copy các giá trị:
+   - `Cloud name` → `CLOUDINARY_CLOUD_NAME`
+   - `API Key` → `CLOUDINARY_API_KEY`
+   - `API Secret` → `CLOUDINARY_API_SECRET`
 
 ---
 
@@ -357,7 +370,7 @@ npm run build
 - **Database**: MongoDB
 - **ORM**: TypeORM
 - **Authentication**: JWT
-- **File Upload**: Next.js API với multer
+- **File Upload**: Cloudinary (cloud storage)
 
 ---
 
@@ -406,11 +419,19 @@ Thiết lập các biến môi trường trên Heroku:
 ```bash
 heroku config:set DATABASE_URL="your-mongodb-atlas-connection-string"
 heroku config:set JWT_SECRET="your-random-secret-key"
+heroku config:set CLOUDINARY_CLOUD_NAME="your-cloudinary-cloud-name"
+heroku config:set CLOUDINARY_API_KEY="your-cloudinary-api-key"
+heroku config:set CLOUDINARY_API_SECRET="your-cloudinary-api-secret"
 ```
 
 **Hoặc thông qua Heroku Dashboard:**
 1. Vào Settings → Config Vars
-2. Thêm `DATABASE_URL` và `JWT_SECRET`
+2. Thêm các biến:
+   - `DATABASE_URL`
+   - `JWT_SECRET`
+   - `CLOUDINARY_CLOUD_NAME`
+   - `CLOUDINARY_API_KEY`
+   - `CLOUDINARY_API_SECRET`
 
 ---
 

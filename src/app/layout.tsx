@@ -4,8 +4,7 @@ import "@/styles/globals.css";
 
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { MainNav } from "@/components/layout/main-nav";
-import { CartProvider } from "@/contexts/cart-context";
-import { AuthProvider } from "@/contexts/auth-context";
+import { AuthInitializer } from "@/components/auth-initializer";
 import { ensureAdminExists } from "@/lib/init-admin";
 import { Toaster } from "@/components/ui/toaster";
 import { ClearTableListener } from "@/components/clear-table-listener";
@@ -45,17 +44,14 @@ export default async function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <AuthProvider>
-            <CartProvider>
-              <div className="relative flex min-h-screen flex-col">
-                <MainNav />
-                <main className="flex-1 container py-4 sm:py-6 max-w-7xl mx-auto w-full px-0">
-                  {children}
-                </main>
-              </div>
-              <Toaster />
-            </CartProvider>
-          </AuthProvider>
+          <AuthInitializer />
+          <div className="relative flex min-h-screen flex-col">
+            <MainNav />
+            <main className="flex-1 container py-4 sm:py-6 max-w-7xl mx-auto w-full px-0">
+              {children}
+            </main>
+          </div>
+          <Toaster />
         </ThemeProvider>
       </body>
     </html>

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { ProductServiceTypeORM } from '../services/product-service-typeorm';
 import { productCreateSchema, productUpdateSchema, ProductUpdate } from '../schemas/product-schema';
 import { ErrorHandler } from '../errors/error-handler';
-import { saveFileFromForm } from '@/server/utils/upload';
+import { uploadFromForm } from '@/server/utils/cloudinary';
 import { serializeEntity } from '../utils/typeorm-helpers';
 
 export class ProductController {
@@ -12,42 +12,59 @@ export class ProductController {
     this.service = new ProductServiceTypeORM();
   }
 
+  private processCategoryIds(form: FormData): string[] {
+    const values = form.getAll('categoryIds');
+    return values
+      .filter(v => typeof v === 'string' && v.trim() !== '')
+      .map(v => v as string);
+  }
+
+  private processPrice(value: string): number | undefined {
+    const numValue = Number(value);
+    if (!Number.isNaN(numValue)) {
+      return numValue;
+    }
+    return undefined;
+  }
+
+  private processStock(value: string): number | null {
+    if (value === '' || value === 'null') {
+      return null;
+    }
+    const numValue = Number(value);
+    if (!Number.isNaN(numValue)) {
+      return numValue;
+    }
+    return null;
+  }
+
+  private processFieldValue(key: string, value: string): string | number | null | undefined {
+    if (key === 'price') {
+      return this.processPrice(value);
+    }
+    if (key === 'stock') {
+      return this.processStock(value);
+    }
+    return value;
+  }
+
   private async processFormData(form: FormData): Promise<Record<string, string | number | null | string[]>> {
     const data: Record<string, string | number | null | string[]> = {};
+    
     for (const key of Array.from(form.keys())) {
       if (key === 'categoryIds') {
-        // Xử lý categoryIds: lấy tất cả giá trị với key này
-        const values = form.getAll(key);
-        const categoryIds = values
-          .filter(v => typeof v === 'string' && v.trim() !== '')
-          .map(v => v as string);
-        data[key] = categoryIds;
+        data[key] = this.processCategoryIds(form);
       } else {
         const value = form.get(key);
         if (typeof value === 'string') {
-          if (key === 'price') {
-            const numValue = Number(value);
-            if (!Number.isNaN(numValue)) {
-              data[key] = numValue;
-            }
-          } else if (key === 'stock') {
-            // Xử lý stock: empty string -> null, -1 -> -1, số khác -> số
-            if (value === '' || value === 'null') {
-              data[key] = null;
-            } else {
-              const numValue = Number(value);
-              if (!Number.isNaN(numValue)) {
-                data[key] = numValue;
-              } else {
-                data[key] = null;
-              }
-            }
-          } else {
-            data[key] = value;
+          const processedValue = this.processFieldValue(key, value);
+          if (processedValue !== undefined) {
+            data[key] = processedValue;
           }
         }
       }
     }
+    
     return data;
   }
 
@@ -55,7 +72,7 @@ export class ProductController {
     const imageFile = form.get('image');
     if (imageFile && imageFile instanceof Blob && imageFile.size > 0) {
       try {
-        const imagePath = await saveFileFromForm(form, 'image', 'products', id);
+        const imagePath = await uploadFromForm(form, 'image', 'products', id);
         if (imagePath) {
           return await this.service.update(id, { ...validated, image: imagePath });
         }
@@ -79,7 +96,7 @@ export class ProductController {
 
         // save file if provided
         const productId = typeof product.id === 'string' ? product.id : product.id.toString();
-        const imagePath = await saveFileFromForm(form, 'image', 'products', productId);
+        const imagePath = await uploadFromForm(form, 'image', 'products', productId);
         if (imagePath) {
           await this.service.update(productId, { image: imagePath });
           const updated = await this.service.findById(productId);

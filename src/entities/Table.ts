@@ -1,5 +1,6 @@
 import { Entity, ObjectIdColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
 import { ObjectId } from 'mongodb';
+import { Order } from './Order';
 
 export enum TableStatus {
   AVAILABLE = 'AVAILABLE',
@@ -31,5 +32,5 @@ export class Table {
   updatedAt!: Date;
 
   // Relations
-  orders?: any[]; // Order[]
+  orders?: Order[];
 }

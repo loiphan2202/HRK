@@ -1,5 +1,8 @@
 import { Entity, ObjectIdColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
 import { ObjectId } from 'mongodb';
+import { User } from './User';
+import { Table } from './Table';
+import { OrderProduct } from './OrderProduct';
 
 export enum OrderStatus {
   PENDING = 'PENDING',
@@ -35,7 +38,7 @@ export class Order {
   updatedAt?: Date;
 
   // Relations
-  user?: any; // User
-  table?: any; // Table
-  products?: any[]; // OrderProduct[]
+  user?: User;
+  table?: Table;
+  products?: OrderProduct[];
 }

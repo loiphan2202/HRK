@@ -9,8 +9,8 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { ShoppingCart, ArrowLeft, Plus, Minus } from "lucide-react"
-import { useCart } from "@/contexts/cart-context"
-import { useAuth } from "@/contexts/auth-context"
+import { useCartStore } from "@/store/cart-store"
+import { useAuthStore } from "@/store/auth-store"
 import { useToast } from "@/components/ui/use-toast"
 
 interface Product {
@@ -40,11 +40,24 @@ async function getProduct(id: string): Promise<Product | null> {
   }
 }
 
+const getStockDisplay = (stock: number | null): string => {
+  if (stock === null) {
+    return "Không theo dõi"
+  }
+  if (stock === -1) {
+    return "Không giới hạn"
+  }
+  if (stock > 0) {
+    return `Còn ${stock} sản phẩm`
+  }
+  return "Hết hàng"
+}
+
 export default function ProductDetailPage() {
   const params = useParams()
   const router = useRouter()
-  const { addToCart } = useCart()
-  const { isAdmin } = useAuth()
+  const addToCart = useCartStore((state) => state.addToCart)
+  const isAdmin = useAuthStore((state) => state.isAdmin)
   const { toast } = useToast()
   const [product, setProduct] = useState<Product | null>(null)
   const [loading, setLoading] = useState(true)
@@ -208,13 +221,7 @@ export default function ProductDetailPage() {
                 ? "text-green-600" 
                 : "text-red-600"
             }`}>
-              {product.stock === null 
-                ? "Không theo dõi" 
-                : product.stock === -1 
-                ? "Không giới hạn" 
-                : product.stock > 0 
-                ? `Còn ${product.stock} sản phẩm` 
-                : "Hết hàng"}
+              {getStockDisplay(product.stock)}
             </span>
           </div>
 
@@ -236,7 +243,7 @@ export default function ProductDetailPage() {
                       type="number"
                       value={quantity}
                       onChange={(e) => {
-                        const value = parseInt(e.target.value) || 1
+                        const value = Number.parseInt(e.target.value) || 1
                         setQuantity(Math.max(1, Math.min(value, getMaxQuantity())))
                       }}
                       className="w-20 text-center border-0"

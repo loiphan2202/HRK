@@ -1,9 +1,6 @@
 import { User } from '@/entities/User';
 import { BaseRepositoryTypeORM } from './base-repository-typeorm';
-import { UserCreate, UserUpdate } from '../schemas/user-schema';
-import { Repository } from 'typeorm';
-import { ObjectId } from 'mongodb';
-import { getDataSource } from '@/lib/typeorm';
+import { UserCreate } from '../schemas/user-schema';
 
 export class UserRepositoryTypeORM extends BaseRepositoryTypeORM<User> {
   protected getEntity(): new () => User {

@@ -1,9 +1,8 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useAuth } from "@/contexts/auth-context"
-import { useRouter } from "next/navigation"
 import { useToast } from "@/components/ui/use-toast"
+import { AdminGuard } from "@/components/auth/admin-guard"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -52,8 +51,6 @@ interface Category {
 }
 
 export default function AdminCategoriesPage() {
-  const { isAdmin, isLoading } = useAuth()
-  const router = useRouter()
   const { toast } = useToast()
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
@@ -68,11 +65,6 @@ export default function AdminCategoriesPage() {
   })
   const [categoryName, setCategoryName] = useState("")
 
-  useEffect(() => {
-    if (!isLoading && !isAdmin()) {
-      router.push("/")
-    }
-  }, [isLoading, isAdmin, router])
 
   useEffect(() => {
     loadCategories()
@@ -81,7 +73,8 @@ export default function AdminCategoriesPage() {
   async function loadCategories() {
     try {
       setLoading(true)
-      const res = await fetch("/api/categories")
+      const { apiGet } = await import('@/lib/api-client')
+      const res = await apiGet("/api/categories")
       const data = await res.json()
       if (data.success) {
         setCategories(data.data || [])
@@ -104,11 +97,8 @@ export default function AdminCategoriesPage() {
         return
       }
 
-      const res = await fetch("/api/categories", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: categoryName.trim() }),
-      })
+      const { apiPost } = await import('@/lib/api-client')
+      const res = await apiPost("/api/categories", { name: categoryName.trim() })
 
       if (!res.ok) {
         const error = await res.json()
@@ -145,11 +135,8 @@ export default function AdminCategoriesPage() {
         return
       }
 
-      const res = await fetch(`/api/categories/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim() }),
-      })
+      const { apiPut } = await import('@/lib/api-client')
+      const res = await apiPut(`/api/categories/${id}`, { name: name.trim() })
 
       if (!res.ok) {
         const error = await res.json()
@@ -176,9 +163,8 @@ export default function AdminCategoriesPage() {
 
   async function deleteCategory(id: string) {
     try {
-      const res = await fetch(`/api/categories/${id}`, {
-        method: "DELETE",
-      })
+      const { apiDelete } = await import('@/lib/api-client')
+      const res = await apiDelete(`/api/categories/${id}`)
 
       if (!res.ok) {
         const error = await res.json()
@@ -203,16 +189,9 @@ export default function AdminCategoriesPage() {
     }
   }
 
-  if (isLoading || !isAdmin()) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <p className="text-muted-foreground">Loading...</p>
-      </div>
-    )
-  }
-
   return (
-    <div className="flex flex-col space-y-6 sm:space-y-8 w-full px-4 sm:px-6 lg:px-0">
+    <AdminGuard>
+      <div className="flex flex-col space-y-6 sm:space-y-8 w-full px-4 sm:px-6 lg:px-0">
       <div>
         <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight">Quản lý danh mục</h1>
         <p className="text-sm sm:text-base text-muted-foreground mt-2">
@@ -409,6 +388,7 @@ export default function AdminCategoriesPage() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+    </AdminGuard>
   )
 }
 

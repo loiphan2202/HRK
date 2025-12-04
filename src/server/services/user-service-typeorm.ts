@@ -56,7 +56,7 @@ export class UserServiceTypeORM {
       ...(data.name !== undefined && { name: data.name }),
       ...(data.password && { password: data.password }),
       ...(data.image !== undefined && { image: data.image }),
-      ...(data.role && { role: UserRole[data.role as keyof typeof UserRole] }),
+      ...(data.role && { role: data.role as UserRole }),
     };
 
     return await this.repository.update(id, updateData);

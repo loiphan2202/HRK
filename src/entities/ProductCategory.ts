@@ -1,5 +1,7 @@
 import { Entity, ObjectIdColumn, Column, CreateDateColumn, Index } from 'typeorm';
 import { ObjectId } from 'mongodb';
+import { Product } from './Product';
+import { Category } from './Category';
 
 @Entity('product_categories')
 @Index(['productId', 'categoryId'], { unique: true })
@@ -19,6 +21,6 @@ export class ProductCategory {
   createdAt!: Date;
 
   // Relations
-  product?: any; // Product
-  category?: any; // Category
+  product?: Product;
+  category?: Category;
 }

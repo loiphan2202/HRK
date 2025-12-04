@@ -1,15 +1,14 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useAuth } from "@/contexts/auth-context"
-import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
+import { AdminGuard } from "@/components/auth/admin-guard"
 import { useToast } from "@/components/ui/use-toast"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import { Plus, QrCode, CreditCard, Printer, FileDown, Edit2, Trash2, MoreHorizontal, Download } from "lucide-react"
+import { Plus, QrCode, CreditCard, Printer, FileDown, Edit2, Trash2, MoreHorizontal, Download, Copy } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
   Table,
@@ -45,7 +44,21 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Copy } from "lucide-react"
+
+type OrderStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'CANCELLED'
+
+const getStatusName = (status: string): string => {
+  if (status === 'PENDING') return 'Chờ xử lý'
+  if (status === 'PROCESSING') return 'Đang xử lý'
+  if (status === 'COMPLETED') return 'Hoàn thành'
+  return 'Đã hủy'
+}
+
+const getTableStatusName = (status: 'AVAILABLE' | 'OCCUPIED' | 'RESERVED'): string => {
+  if (status === 'AVAILABLE') return 'Trống'
+  if (status === 'OCCUPIED') return 'Đang dùng'
+  return 'Đã đặt'
+}
 
 interface TableData {
   id: string
@@ -56,8 +69,6 @@ interface TableData {
 }
 
 export default function AdminTablesPage() {
-  const { isAdmin, isLoading } = useAuth()
-  const router = useRouter()
   const { toast } = useToast()
   const [tables, setTables] = useState<TableData[]>([])
   const [loading, setLoading] = useState(true)
@@ -100,14 +111,9 @@ export default function AdminTablesPage() {
   const [vat, setVat] = useState(10) // VAT %
   const [discount, setDiscount] = useState(0) // Discount amount
   const [processingPayment, setProcessingPayment] = useState(false)
-  const [orderStatuses, setOrderStatuses] = useState<Record<string, 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'CANCELLED'>>({})
-  const [defaultOrderStatus, setDefaultOrderStatus] = useState<'PENDING' | 'PROCESSING' | 'COMPLETED' | 'CANCELLED'>('COMPLETED')
+  const [orderStatuses, setOrderStatuses] = useState<Record<string, OrderStatus>>({})
+  const [defaultOrderStatus, setDefaultOrderStatus] = useState<OrderStatus>('COMPLETED')
 
-  useEffect(() => {
-    if (!isLoading && !isAdmin()) {
-      router.push("/")
-    }
-  }, [isLoading, isAdmin, router])
 
   useEffect(() => {
     loadTables()
@@ -116,7 +122,8 @@ export default function AdminTablesPage() {
   async function loadTables() {
     try {
       setLoading(true)
-      const res = await fetch("/api/tables")
+      const { apiGet } = await import('@/lib/api-client')
+      const res = await apiGet("/api/tables")
       const data = await res.json()
       setTables(data.data || [])
     } catch (error) {
@@ -128,11 +135,8 @@ export default function AdminTablesPage() {
 
   async function createTable() {
     try {
-      const res = await fetch("/api/tables", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ number: parseInt(tableNumber) }),
-      })
+      const { apiPost } = await import('@/lib/api-client')
+      const res = await apiPost("/api/tables", { number: Number.parseInt(tableNumber) })
 
       if (!res.ok) throw new Error("Failed to create table")
 
@@ -155,11 +159,8 @@ export default function AdminTablesPage() {
 
   async function updateTable(id: string, number: number) {
     try {
-      const res = await fetch(`/api/tables/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ number }),
-      })
+      const { apiPut } = await import('@/lib/api-client')
+      const res = await apiPut(`/api/tables/${id}`, { number })
 
       if (!res.ok) throw new Error("Failed to update table")
 
@@ -182,9 +183,8 @@ export default function AdminTablesPage() {
 
   async function deleteTable(id: string) {
     try {
-      const res = await fetch(`/api/tables/${id}`, {
-        method: "DELETE",
-      })
+      const { apiDelete } = await import('@/lib/api-client')
+      const res = await apiDelete(`/api/tables/${id}`)
 
       if (!res.ok) throw new Error("Failed to delete table")
 
@@ -207,9 +207,8 @@ export default function AdminTablesPage() {
   async function generateQrCode(tableId: string) {
     try {
       setCreatingQr(tableId)
-      const res = await fetch(`/api/tables/${tableId}/qr`, {
-        method: "POST",
-      })
+      const { apiPost } = await import('@/lib/api-client')
+      const res = await apiPost(`/api/tables/${tableId}/qr`, {})
 
       if (!res.ok) throw new Error("Failed to generate QR code")
 
@@ -236,8 +235,14 @@ export default function AdminTablesPage() {
       setLoadingOrders(true)
       // Load cả PENDING và PROCESSING orders để thanh toán
       const [pendingRes, processingRes] = await Promise.all([
-        fetch(`/api/orders?tableNumber=${tableNumber}&status=PENDING`),
-        fetch(`/api/orders?tableNumber=${tableNumber}&status=PROCESSING`)
+        (async () => {
+          const { apiGet } = await import('@/lib/api-client')
+          return apiGet(`/api/orders?tableNumber=${tableNumber}&status=PENDING`)
+        })(),
+        (async () => {
+          const { apiGet } = await import('@/lib/api-client')
+          return apiGet(`/api/orders?tableNumber=${tableNumber}&status=PROCESSING`)
+        })()
       ])
       
       const pendingData = await pendingRes.json()
@@ -261,7 +266,7 @@ export default function AdminTablesPage() {
     setSelectedTable(table)
     await loadTableOrders(table.number)
     // Initialize order statuses với default status hoặc giữ nguyên status hiện tại
-    const initialStatuses: Record<string, 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'CANCELLED'> = {}
+    const initialStatuses: Record<string, OrderStatus> = {}
     setOrderStatuses(initialStatuses)
     setPaymentDialogOpen(true)
   }
@@ -272,14 +277,11 @@ export default function AdminTablesPage() {
     setProcessingPayment(true)
     try {
       // Update orders với status được chọn (hoặc default status nếu không có)
+      const { apiPut } = await import('@/lib/api-client')
       await Promise.all(
         tableOrders.map(order => {
           const statusToSet = orderStatuses[order.id] || defaultOrderStatus
-          return fetch(`/api/orders/${order.id}`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ status: statusToSet }),
-          })
+          return apiPut(`/api/orders/${order.id}`, { status: statusToSet })
         })
       )
 
@@ -307,10 +309,7 @@ export default function AdminTablesPage() {
       
       const statusText = Object.entries(statusCounts)
         .map(([status, count]) => {
-          const statusName = status === 'PENDING' ? 'Chờ xử lý' : 
-                           status === 'PROCESSING' ? 'Đang xử lý' : 
-                           status === 'COMPLETED' ? 'Hoàn thành' : 
-                           'Đã hủy'
+          const statusName = getStatusName(status)
           return `${statusName} (${count})`
         })
         .join(', ')
@@ -344,12 +343,31 @@ export default function AdminTablesPage() {
     
     const printWindow = window.open('', '_blank')
     if (printWindow) {
+      printWindow.document.open()
+      // eslint-disable-next-line deprecation/deprecation
       printWindow.document.write(invoiceHTML)
       printWindow.document.close()
       printWindow.onload = () => {
         printWindow.print()
       }
     }
+  }
+
+  const getCustomerInfoHTML = (): string => {
+    if (tableOrders.length === 0 || !tableOrders[0]?.user) {
+      return '<p><strong>Khách hàng:</strong> Khách hàng</p>'
+    }
+    
+    const user = tableOrders[0].user
+    const customerName = user.name || user.email
+    const emailHTML = user.email ? `<p><strong>Email:</strong> ${user.email}</p>` : ''
+    
+    return `
+      <div class="customer-info">
+        <p><strong>Khách hàng:</strong> ${customerName}</p>
+        ${emailHTML}
+      </div>
+    `
   }
 
   function generateInvoiceHTML(totals: { subtotal: number; vatAmount: number; total: number }) {
@@ -429,12 +447,7 @@ export default function AdminTablesPage() {
             <h1>HÓA ĐƠN THANH TOÁN</h1>
             <p>Bàn số ${selectedTable.number}</p>
             <p>Ngày in: ${new Date().toLocaleString('vi-VN')}</p>
-            ${tableOrders.length > 0 && tableOrders[0]?.user ? `
-              <div class="customer-info">
-                <p><strong>Khách hàng:</strong> ${tableOrders[0].user.name || tableOrders[0].user.email}</p>
-                ${tableOrders[0].user.email ? `<p><strong>Email:</strong> ${tableOrders[0].user.email}</p>` : ''}
-              </div>
-            ` : '<p><strong>Khách hàng:</strong> Khách hàng</p>'}
+            ${getCustomerInfoHTML()}
           </div>
           <div class="order-details">
             ${orderDetailsHTML}
@@ -481,6 +494,8 @@ export default function AdminTablesPage() {
     
     const printWindow = window.open('', '_blank')
     if (printWindow) {
+      printWindow.document.open()
+      // eslint-disable-next-line deprecation/deprecation
       printWindow.document.write(invoiceHTML)
       printWindow.document.close()
       printWindow.onload = () => {
@@ -506,16 +521,9 @@ export default function AdminTablesPage() {
     }
   }
 
-  if (isLoading || !isAdmin()) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <p className="text-muted-foreground">Đang tải...</p>
-      </div>
-    )
-  }
-
   return (
-    <div className="flex flex-col space-y-6 sm:space-y-8 w-full px-4 sm:px-6 lg:px-0">
+    <AdminGuard>
+      <div className="flex flex-col space-y-6 sm:space-y-8 w-full px-4 sm:px-6 lg:px-0">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight">Quản lý bàn</h1>
@@ -596,25 +604,18 @@ export default function AdminTablesPage() {
                         <TableCell className="font-medium">Bàn {table.number}</TableCell>
                         <TableCell>
                           <Badge className={getStatusColor(table.status)}>
-                            {table.status === 'AVAILABLE' ? 'Trống' : 
-                             table.status === 'OCCUPIED' ? 'Đang dùng' : 
-                             'Đã đặt'}
+                            {getTableStatusName(table.status)}
                           </Badge>
                         </TableCell>
                         <TableCell>
                           {table.qrCode ? (
                             <div className="flex items-center gap-2">
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img
-                                src={table.qrCode}
-                                alt={`QR Code for Table ${table.number}`}
-                                width={48}
-                                height={48}
-                                className="object-contain border rounded cursor-pointer hover:opacity-80 transition-opacity block"
+                              <button
+                                type="button"
                                 onClick={() => {
                                   if (table.token && table.qrCode) {
                                     // Construct URL from current origin
-                                    const url = `${window.location.origin}/check-in?token=${table.token}`;
+                                    const url = `${globalThis.location.origin}/check-in?token=${table.token}`;
                                     setSelectedQr({
                                       image: table.qrCode,
                                       url: url,
@@ -623,7 +624,18 @@ export default function AdminTablesPage() {
                                     setQrDialogOpen(true);
                                   }
                                 }}
-                              />
+                                className="cursor-pointer hover:opacity-80 transition-opacity border-0 bg-transparent p-0"
+                                aria-label={`Xem QR Code cho Bàn ${table.number}`}
+                              >
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={table.qrCode}
+                                  alt={`QR Code for Table ${table.number}`}
+                                  width={48}
+                                  height={48}
+                                  className="object-contain border rounded block"
+                                />
+                              </button>
                             </div>
                           ) : (
                             <span className="text-xs text-muted-foreground">Chưa tạo</span>
@@ -749,7 +761,7 @@ export default function AdminTablesPage() {
                   link.download = `QR-Ban-${selectedQr.tableNumber}.png`;
                   document.body.appendChild(link);
                   link.click();
-                  document.body.removeChild(link);
+                  link.remove();
                   toast({
                     title: "Đã tải xuống",
                     description: "Mã QR đã được tải xuống thành công",
@@ -775,15 +787,22 @@ export default function AdminTablesPage() {
             </DialogDescription>
           </DialogHeader>
           
-          {loadingOrders ? (
-            <div className="py-8 text-center text-muted-foreground">
-              Đang tải đơn hàng...
-            </div>
-          ) : tableOrders.length === 0 ? (
-            <div className="py-8 text-center text-muted-foreground">
-              Không có đơn hàng nào cho bàn này
-            </div>
-          ) : (
+          {(() => {
+            if (loadingOrders) {
+              return (
+                <div className="py-8 text-center text-muted-foreground">
+                  Đang tải đơn hàng...
+                </div>
+              );
+            }
+            if (tableOrders.length === 0) {
+              return (
+                <div className="py-8 text-center text-muted-foreground">
+                  Không có đơn hàng nào cho bàn này
+                </div>
+              );
+            }
+            return (
             <div id="invoice-content" className="space-y-4">
               {/* Invoice Header - chỉ hiển thị khi in */}
               <div className="hidden mb-4 text-center border-b pb-4" data-print="show" style={{ display: 'none' }}>
@@ -833,7 +852,7 @@ export default function AdminTablesPage() {
                             <Label className="text-xs">Trạng thái:</Label>
                             <Select 
                               value={orderStatuses[order.id] || defaultOrderStatus} 
-                              onValueChange={(value: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'CANCELLED') => {
+                              onValueChange={(value: OrderStatus) => {
                                 setOrderStatuses(prev => ({ ...prev, [order.id]: value }))
                               }}
                             >
@@ -937,7 +956,7 @@ export default function AdminTablesPage() {
                       onValueChange={(value: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'CANCELLED') => {
                         setDefaultOrderStatus(value)
                         // Áp dụng cho tất cả orders chưa có status riêng
-                        const newStatuses: Record<string, 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'CANCELLED'> = {}
+                        const newStatuses: Record<string, OrderStatus> = {}
                         tableOrders.forEach(order => {
                           if (!orderStatuses[order.id]) {
                             newStatuses[order.id] = value
@@ -1008,7 +1027,8 @@ export default function AdminTablesPage() {
                 </div>
               </div>
             </div>
-          )}
+            );
+          })()}
 
           <DialogFooter data-print="hide">
             <div className="flex gap-2 w-full justify-between">
@@ -1073,7 +1093,7 @@ export default function AdminTablesPage() {
             <Button
               onClick={() => {
                 if (editDialog.table) {
-                  updateTable(editDialog.table.id, parseInt(editTableNumber))
+                  updateTable(editDialog.table.id, Number.parseInt(editTableNumber))
                 }
               }}
               disabled={!editTableNumber}
@@ -1113,6 +1133,7 @@ export default function AdminTablesPage() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+    </AdminGuard>
   )
 }
 

@@ -1,9 +1,6 @@
 import { Category } from '@/entities/Category';
 import { BaseRepositoryTypeORM } from './base-repository-typeorm';
 import { CategoryCreate, CategoryUpdate } from '../schemas/category-schema';
-import { Repository } from 'typeorm';
-import { ObjectId } from 'mongodb';
-import { getDataSource } from '@/lib/typeorm';
 
 export class CategoryRepositoryTypeORM extends BaseRepositoryTypeORM<Category> {
   protected getEntity(): new () => Category {

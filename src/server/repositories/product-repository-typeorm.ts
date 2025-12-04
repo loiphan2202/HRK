@@ -4,7 +4,6 @@ import { Category } from '@/entities/Category';
 import { OrderProduct } from '@/entities/OrderProduct';
 import { BaseRepositoryTypeORM } from './base-repository-typeorm';
 import { ProductCreate, ProductUpdate } from '../schemas/product-schema';
-import { Repository, DataSource } from 'typeorm';
 import { ObjectId } from 'mongodb';
 import { getDataSource } from '@/lib/typeorm';
 
@@ -235,6 +234,6 @@ export class ProductRepositoryTypeORM extends BaseRepositoryTypeORM<Product> {
     // Delete product
     await productRepo.remove(product as any);
 
-    return product as Product;
+    return product;
   }
 }

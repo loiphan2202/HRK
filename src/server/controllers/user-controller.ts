@@ -4,7 +4,7 @@ import { userCreateSchema, userUpdateSchema, loginSchema } from '../schemas/user
 import { ErrorHandler } from '../errors/error-handler';
 import { UnauthorizedError } from '../errors/base-error';
 import jwt from 'jsonwebtoken';
-import { saveFileFromForm } from '@/server/utils/upload';
+import { uploadFromForm } from '@/server/utils/cloudinary';
 import { serializeEntity } from '../utils/typeorm-helpers';
 
 export class UserController {
@@ -40,7 +40,7 @@ export class UserController {
 
         // save file if provided
         const userId = typeof user.id === 'string' ? user.id : user.id.toString();
-        const imagePath = await saveFileFromForm(form, 'image', 'users', userId);
+        const imagePath = await uploadFromForm(form, 'image', 'users', userId);
         if (imagePath) {
           user = await this.service.update(userId, { image: imagePath });
         }
@@ -53,7 +53,7 @@ export class UserController {
       // Generate token after registration
       const userId = typeof user.id === 'string' ? user.id : user.id.toString();
       const token = jwt.sign(
-        { userId },
+        { userId, role: user.role },
         process.env.JWT_SECRET || 'your-secret-key',
         { expiresIn: '1d' }
       );
@@ -87,7 +87,7 @@ export class UserController {
 
       const userId = typeof user.id === 'string' ? user.id : user.id.toString();
       const token = jwt.sign(
-        { userId },
+        { userId, role: user.role },
         process.env.JWT_SECRET || 'your-secret-key',
         { expiresIn: '1d' }
       );
@@ -118,7 +118,7 @@ export class UserController {
         const validatedData = userUpdateSchema.parse(data);
         const user = await this.service.update(id, validatedData);
 
-        const imagePath = await saveFileFromForm(form, 'image', 'users', id);
+        const imagePath = await uploadFromForm(form, 'image', 'users', id);
         if (imagePath) {
           const updated = await this.service.update(id, { image: imagePath });
           return NextResponse.json({ success: true, data: this.excludePassword(serializeEntity(updated)) });

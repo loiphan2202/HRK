@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { useAuth } from "@/contexts/auth-context"
+import { useAuthStore } from "@/store/auth-store"
 import { Loader2 } from "lucide-react"
 
 export default function LoginPage() {
@@ -15,7 +15,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const { login } = useAuth()
+  const login = useAuthStore((state) => state.login)
   const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -26,18 +26,9 @@ export default function LoginPage() {
     try {
       await login(email, password)
       // Check if user is admin and redirect accordingly
-      const savedUser = localStorage.getItem("user")
-      if (savedUser) {
-        try {
-          const user = JSON.parse(savedUser)
-          if (user.role === 'ADMIN') {
-            router.push("/admin")
-          } else {
-            router.push("/")
-          }
-        } catch {
-          router.push("/")
-        }
+      const currentUser = useAuthStore.getState().user
+      if (currentUser?.role === 'ADMIN') {
+        router.push("/admin")
       } else {
         router.push("/")
       }

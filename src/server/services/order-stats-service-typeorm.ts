@@ -2,7 +2,6 @@ import { getDataSource } from '@/lib/typeorm';
 import { Order } from '@/entities/Order';
 import { OrderProduct } from '@/entities/OrderProduct';
 import { Product } from '@/entities/Product';
-import { ObjectId } from 'mongodb';
 
 export interface OrderStats {
   totalRevenue: number

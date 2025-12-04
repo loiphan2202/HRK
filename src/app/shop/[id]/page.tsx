@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { ShoppingCart, ArrowLeft, Plus, Minus } from "lucide-react"
-import { useCart } from "@/contexts/cart-context"
+import { useCartStore } from "@/store/cart-store"
 
 interface Product {
   id: string
@@ -35,7 +35,7 @@ async function getProduct(id: string): Promise<Product | null> {
 export default function ProductDetailPage() {
   const params = useParams()
   const router = useRouter()
-  const { addToCart } = useCart()
+  const addToCart = useCartStore((state) => state.addToCart)
   const [product, setProduct] = useState<Product | null>(null)
   const [loading, setLoading] = useState(true)
   const [quantity, setQuantity] = useState(1)
@@ -178,7 +178,7 @@ export default function ProductDetailPage() {
                       type="number"
                       value={quantity}
                       onChange={(e) => {
-                        const value = parseInt(e.target.value) || 1
+                        const value = Number.parseInt(e.target.value) || 1
                         setQuantity(Math.max(1, Math.min(value, product.stock)))
                       }}
                       className="w-20 text-center border-0"

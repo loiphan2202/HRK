@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { UserServiceTypeORM } from '@/server/services/user-service-typeorm';
-import { serializeEntity } from '@/server/utils/typeorm-helpers';
 
 export async function POST() {
   try {

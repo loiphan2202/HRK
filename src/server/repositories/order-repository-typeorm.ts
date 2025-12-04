@@ -4,7 +4,6 @@ import { Product } from '@/entities/Product';
 import { User } from '@/entities/User';
 import { BaseRepositoryTypeORM } from './base-repository-typeorm';
 import { OrderCreate, OrderUpdate } from '../schemas/order-schema';
-import { Repository, DataSource } from 'typeorm';
 import { ObjectId } from 'mongodb';
 import { getDataSource } from '@/lib/typeorm';
 
@@ -117,17 +116,26 @@ export class OrderRepositoryTypeORM extends BaseRepositoryTypeORM<Order> {
     const users = allUsers.filter(u => userIdSet.has(u.id.toString()));
     const userMap = new Map(users.map(u => [u.id.toString(), u]));
 
-    return orders.map(order => ({
-      ...order,
-      user: order.userId ? (userMap.get(order.userId.toString()) ? {
-        id: order.userId.toString(),
-        email: userMap.get(order.userId.toString())!.email,
-        name: userMap.get(order.userId.toString())!.name,
-        image: userMap.get(order.userId.toString())!.image,
-      } : null) : null,
-      products: productsByOrder.get(order.id.toString()) || [],
-      orderProducts: productsByOrder.get(order.id.toString()) || [], // Alias for frontend compatibility
-    })) as any[];
+    return orders.map(order => {
+      const getUser = () => {
+        if (!order.userId) return null;
+        const user = userMap.get(order.userId.toString());
+        if (!user) return null;
+        return {
+          id: order.userId.toString(),
+          email: user.email,
+          name: user.name,
+          image: user.image,
+        };
+      };
+
+      return {
+        ...order,
+        user: getUser(),
+        products: productsByOrder.get(order.id.toString()) || [],
+        orderProducts: productsByOrder.get(order.id.toString()) || [], // Alias for frontend compatibility
+      };
+    }) as any[];
   }
 
   // Custom create method with OrderCreateInput signature

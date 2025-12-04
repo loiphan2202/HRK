@@ -1,9 +1,6 @@
 import { Table, TableStatus } from '@/entities/Table';
 import { BaseRepositoryTypeORM } from './base-repository-typeorm';
 import { TableCreate, TableUpdate } from '../schemas/table-schema';
-import { Repository } from 'typeorm';
-import { ObjectId } from 'mongodb';
-import { getDataSource } from '@/lib/typeorm';
 
 export class TableRepositoryTypeORM extends BaseRepositoryTypeORM<Table> {
   protected getEntity(): new () => Table {

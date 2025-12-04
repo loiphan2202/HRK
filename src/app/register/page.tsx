@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { useAuth } from "@/contexts/auth-context"
+import { useAuthStore } from "@/store/auth-store"
 import { Loader2 } from "lucide-react"
 
 export default function RegisterPage() {
@@ -16,7 +16,7 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const { register } = useAuth()
+  const register = useAuthStore((state) => state.register)
   const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {

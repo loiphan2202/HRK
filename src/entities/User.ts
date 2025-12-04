@@ -1,5 +1,6 @@
 import { Entity, ObjectIdColumn, Column } from 'typeorm';
 import { ObjectId } from 'mongodb';
+import { Order } from './Order';
 
 export enum UserRole {
   CUSTOMER = 'CUSTOMER',
@@ -27,5 +28,5 @@ export class User {
   role!: UserRole;
 
   // Relations
-  orders?: any[]; // Order[]
+  orders?: Order[];
 }

@@ -48,17 +48,19 @@ export async function migrateProductsWithoutCategory() {
     console.log(`Found ${productsWithoutCategory.length} products without category. Updating...`);
 
     // Update all products to use default category
-    const defaultCategoryId = typeof defaultCategory.id === 'string' 
-      ? new ObjectId(defaultCategory.id) 
-      : defaultCategory.id;
+    const defaultCategoryId = defaultCategory.id instanceof ObjectId 
+      ? defaultCategory.id 
+      : new ObjectId(String(defaultCategory.id));
     
     for (const product of productsWithoutCategory) {
-      const productId = typeof product.id === 'string' ? new ObjectId(product.id) : product.id;
+      const productId = product.id instanceof ObjectId 
+        ? product.id 
+        : new ObjectId(String(product.id));
       await productCategoryRepo.save(
         productCategoryRepo.create({
           productId,
           categoryId: defaultCategoryId,
-        } as any)
+        })
       );
     }
 

@@ -1,5 +1,5 @@
 import QRCode from 'qrcode';
-import crypto from 'crypto';
+import crypto from 'node:crypto';
 
 /**
  * Generate a secure random token for table check-in

@@ -8,27 +8,15 @@ import { Table } from '@/entities/Table';
 import { Order } from '@/entities/Order';
 import { OrderProduct } from '@/entities/OrderProduct';
 
-let dataSource: DataSource | null = null;
+const dataSource = new DataSource({
+  type: 'mongodb',
+  url: process.env.DATABASE_URL,
+  entities: [User, Category, Product, ProductCategory, Table, Order, OrderProduct],
+  synchronize: false, // Don't auto-sync in production
+  logging: process.env.NODE_ENV === 'development',
+});
 
 export async function getDataSource(): Promise<DataSource> {
-  if (dataSource && dataSource.isInitialized) {
-    return dataSource;
-  }
-
-  const databaseUrl = process.env.DATABASE_URL;
-  if (!databaseUrl) {
-    throw new Error('DATABASE_URL is not set');
-  }
-
-  // Create new DataSource if not exists or not initialized
-  dataSource ??= new DataSource({
-    type: 'mongodb',
-    url: databaseUrl,
-    entities: [User, Category, Product, ProductCategory, Table, Order, OrderProduct],
-    synchronize: false, // Don't auto-sync in production
-    logging: process.env.NODE_ENV === 'development',
-  });
-
   // Ensure initialization
   if (!dataSource.isInitialized) {
     await dataSource.initialize();
@@ -43,9 +31,11 @@ const globalForTypeORM = globalThis as unknown as {
 };
 
 if (!globalForTypeORM.dataSource) {
-  getDataSource().then((ds) => {
-    globalForTypeORM.dataSource = ds;
-  }).catch(console.error);
+  try {
+    globalForTypeORM.dataSource = await getDataSource();
+  } catch (error) {
+    console.error(error);
+  }
 }
 
 export { dataSource };

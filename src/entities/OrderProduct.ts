@@ -1,5 +1,7 @@
 import { Entity, ObjectIdColumn, Column } from 'typeorm';
 import { ObjectId } from 'mongodb';
+import { Order } from './Order';
+import { Product } from './Product';
 
 @Entity('order_products')
 export class OrderProduct {
@@ -16,6 +18,6 @@ export class OrderProduct {
   quantity!: number;
 
   // Relations
-  order?: any; // Order
-  product?: any; // Product
+  order?: Order;
+  product?: Product;
 }

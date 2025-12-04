@@ -1,9 +1,8 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useAuth } from "@/contexts/auth-context"
-import { useRouter } from "next/navigation"
 import { useToast } from "@/components/ui/use-toast"
+import { AdminGuard } from "@/components/auth/admin-guard"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Table,
@@ -53,15 +52,22 @@ interface Order {
   orderProducts?: OrderProduct[] | null
 }
 
+type StatsPeriod = 'week' | 'month' | 'quarter' | 'year' | 'all'
+
+const getOrderStatusName = (status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'CANCELLED'): string => {
+  if (status === 'PENDING') return 'Chờ xử lý'
+  if (status === 'PROCESSING') return 'Đang xử lý'
+  if (status === 'COMPLETED') return 'Hoàn thành'
+  return 'Đã hủy'
+}
+
 export default function AdminOrdersPage() {
-  const { isAdmin, isLoading } = useAuth()
-  const router = useRouter()
   const { toast } = useToast()
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState<string>("ALL")
-  const [statsPeriod, setStatsPeriod] = useState<'week' | 'month' | 'quarter' | 'year' | 'all'>('month')
-  const [exportPeriod, setExportPeriod] = useState<'week' | 'month' | 'quarter' | 'year' | 'all'>('month')
+  const [statsPeriod, setStatsPeriod] = useState<StatsPeriod>('month')
+  const [exportPeriod, setExportPeriod] = useState<StatsPeriod>('month')
   const [stats, setStats] = useState<{
     totalRevenue: number
     totalOrders: number
@@ -76,11 +82,6 @@ export default function AdminOrdersPage() {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
   const [orderDialogOpen, setOrderDialogOpen] = useState(false)
 
-  useEffect(() => {
-    if (!isLoading && !isAdmin()) {
-      router.push("/")
-    }
-  }, [isLoading, isAdmin, router])
 
   useEffect(() => {
     loadOrders()
@@ -91,7 +92,7 @@ export default function AdminOrdersPage() {
   async function loadOrders() {
     try {
       setLoading(true)
-      const url = statusFilter !== "ALL" ? `/api/orders?status=${statusFilter}` : "/api/orders"
+      const url = statusFilter === "ALL" ? "/api/orders" : `/api/orders?status=${statusFilter}`
       const res = await fetch(url)
       const data = await res.json()
       setOrders(data.data || [])
@@ -105,7 +106,9 @@ export default function AdminOrdersPage() {
   async function loadStats() {
     try {
       const periodParam = statsPeriod === 'all' ? '' : statsPeriod
-      const res = await fetch(`/api/orders/stats${periodParam ? `?period=${periodParam}` : ''}`)
+      const queryString = periodParam ? `?period=${periodParam}` : ''
+      const { apiGet } = await import('@/lib/api-client')
+      const res = await apiGet(`/api/orders/stats${queryString}`)
       const data = await res.json()
       if (data.success) {
         setStats(data.data)
@@ -118,16 +121,13 @@ export default function AdminOrdersPage() {
   async function updateOrderStatus(orderId: string, status: string) {
     try {
       // Khi status là COMPLETED hoặc CANCELLED, đảm bảo updatedAt được cập nhật
-      const res = await fetch(`/api/orders/${orderId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          status,
-          // Force update updatedAt khi thanh toán hoặc hủy
-          ...((status === 'COMPLETED' || status === 'CANCELLED') && { 
-            updatedAt: new Date().toISOString() 
-          })
-        }),
+      const { apiPut } = await import('@/lib/api-client')
+      const res = await apiPut(`/api/orders/${orderId}`, { 
+        status,
+        // Force update updatedAt khi thanh toán hoặc hủy
+        ...((status === 'COMPLETED' || status === 'CANCELLED') && { 
+          updatedAt: new Date().toISOString() 
+        })
       })
 
       if (!res.ok) throw new Error("Failed to update order")
@@ -137,7 +137,8 @@ export default function AdminOrdersPage() {
       
       // Reload selected order nếu đang mở
       if (selectedOrder && selectedOrder.id === orderId) {
-        const updatedRes = await fetch(`/api/orders/${orderId}`)
+        const { apiGet } = await import('@/lib/api-client')
+        const updatedRes = await apiGet(`/api/orders/${orderId}`)
         const updatedData = await updatedRes.json()
         if (updatedData.success) {
           setSelectedOrder(updatedData.data)
@@ -197,12 +198,7 @@ export default function AdminOrdersPage() {
             <p><strong>Khách hàng:</strong> ${order.user ? (order.user.name || order.user.email) : 'Khách hàng'}</p>
             ${order.user?.email ? `<p><strong>Email:</strong> ${order.user.email}</p>` : ''}
             <p><strong>Bàn số:</strong> ${order.tableNumber ? `Bàn ${order.tableNumber}` : 'N/A'}</p>
-            <p><strong>Trạng thái:</strong> ${
-              order.status === 'PENDING' ? 'Chờ xử lý' : 
-              order.status === 'PROCESSING' ? 'Đang xử lý' : 
-              order.status === 'COMPLETED' ? 'Hoàn thành' : 
-              'Đã hủy'
-            }</p>
+            <p><strong>Trạng thái:</strong> ${getOrderStatusName(order.status)}</p>
             <p><strong>Đặt món lúc:</strong> ${new Date(order.createdAt).toLocaleString('vi-VN')}</p>
             ${order.updatedAt ? `<p><strong>Thanh toán lúc:</strong> ${new Date(order.updatedAt).toLocaleString('vi-VN')}</p>` : '<p><strong>Thanh toán lúc:</strong> Chưa thanh toán</p>'}
           </div>
@@ -241,29 +237,28 @@ export default function AdminOrdersPage() {
     `
   }
 
-  function printOrderInvoice(order: Order) {
+  function openInvoiceWindow(order: Order, onLoad?: () => void) {
     const invoiceHTML = generateOrderInvoiceHTML(order)
     const printWindow = window.open('', '_blank')
     if (printWindow) {
+      // eslint-disable-next-line deprecation/deprecation
       printWindow.document.write(invoiceHTML)
       printWindow.document.close()
       printWindow.onload = () => {
         printWindow.print()
+        onLoad?.()
       }
     }
   }
 
+  function printOrderInvoice(order: Order) {
+    openInvoiceWindow(order)
+  }
+
   function exportOrderToPDF(order: Order) {
-    const invoiceHTML = generateOrderInvoiceHTML(order)
-    const printWindow = window.open('', '_blank')
-    if (printWindow) {
-      printWindow.document.write(invoiceHTML)
-      printWindow.document.close()
-      printWindow.onload = () => {
-        printWindow.print()
-        // Sau khi in, có thể download PDF bằng cách save từ browser
-      }
-    }
+    openInvoiceWindow(order, () => {
+      // Sau khi in, có thể download PDF bằng cách save từ browser
+    })
   }
 
   function getDateRange(period: string) {
@@ -277,10 +272,11 @@ export default function AdminOrdersPage() {
       case 'month':
         startDate = new Date(now.getFullYear(), now.getMonth(), 1)
         break
-      case 'quarter':
+      case 'quarter': {
         const quarter = Math.floor(now.getMonth() / 3)
         startDate = new Date(now.getFullYear(), quarter * 3, 1)
         break
+      }
       case 'year':
         startDate = new Date(now.getFullYear(), 0, 1)
         break
@@ -385,7 +381,7 @@ export default function AdminOrdersPage() {
         order.user ? (order.user.name || order.user.email) : 'Khách hàng',
         order.user?.email || 'N/A',
         order.tableNumber ? `Bàn ${order.tableNumber}` : 'N/A',
-        order.status === 'PENDING' ? 'Chờ xử lý' : order.status === 'PROCESSING' ? 'Đang xử lý' : order.status === 'COMPLETED' ? 'Hoàn thành' : 'Đã hủy',
+        getOrderStatusName(order.status),
         new Date(order.createdAt).toLocaleString('vi-VN'),
         order.updatedAt ? new Date(order.updatedAt).toLocaleString('vi-VN') : 'Chưa thanh toán',
       ]
@@ -432,7 +428,7 @@ export default function AdminOrdersPage() {
     ].join('\n')
 
     // Tạo và download file
-    const periodSuffix = exportPeriod !== 'all' ? `_${exportPeriod}` : ''
+    const periodSuffix = exportPeriod === 'all' ? '' : `_${exportPeriod}`
     const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' })
     const link = document.createElement('a')
     const url = URL.createObjectURL(blob)
@@ -441,7 +437,7 @@ export default function AdminOrdersPage() {
     link.style.visibility = 'hidden'
     document.body.appendChild(link)
     link.click()
-    document.body.removeChild(link)
+    link.remove()
   }
 
   const getStatusColor = (status: string) => {
@@ -454,16 +450,9 @@ export default function AdminOrdersPage() {
     }
   }
 
-  if (isLoading || !isAdmin()) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <p className="text-muted-foreground">Đang tải...</p>
-      </div>
-    )
-  }
-
   return (
-    <div className="flex flex-col space-y-6 sm:space-y-8 w-full px-4 sm:px-6 lg:px-0">
+    <AdminGuard>
+      <div className="flex flex-col space-y-6 sm:space-y-8 w-full px-4 sm:px-6 lg:px-0">
       <div>
         <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight">Quản lý đơn hàng</h1>
         <p className="text-sm sm:text-base text-muted-foreground mt-2">
@@ -484,7 +473,7 @@ export default function AdminOrdersPage() {
               <SelectItem value="CANCELLED">Đã hủy</SelectItem>
             </SelectContent>
           </Select>
-          <Select value={exportPeriod} onValueChange={(value: 'week' | 'month' | 'quarter' | 'year' | 'all') => setExportPeriod(value)}>
+          <Select value={exportPeriod} onValueChange={(value: StatsPeriod) => setExportPeriod(value)}>
             <SelectTrigger className="w-[140px]">
               <SelectValue />
             </SelectTrigger>
@@ -693,7 +682,7 @@ export default function AdminOrdersPage() {
                     <TableCell className="font-bold">{order.total.toLocaleString('vi-VN')}đ</TableCell>
                     <TableCell>
                       <Badge className={getStatusColor(order.status)}>
-                        {order.status === 'PENDING' ? 'Chờ xử lý' : order.status === 'PROCESSING' ? 'Đang xử lý' : order.status === 'COMPLETED' ? 'Hoàn thành' : 'Đã hủy'}
+                        {getOrderStatusName(order.status)}
                       </Badge>
                     </TableCell>
                     <TableCell className="hidden lg:table-cell">
@@ -770,10 +759,7 @@ export default function AdminOrdersPage() {
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-muted-foreground">Trạng thái</p>
                   <Badge className={getStatusColor(selectedOrder.status)}>
-                    {selectedOrder.status === 'PENDING' ? 'Chờ xử lý' : 
-                     selectedOrder.status === 'PROCESSING' ? 'Đang xử lý' : 
-                     selectedOrder.status === 'COMPLETED' ? 'Hoàn thành' : 
-                     'Đã hủy'}
+                    {getOrderStatusName(selectedOrder.status)}
                   </Badge>
                 </div>
                 <div className="space-y-2">
@@ -889,6 +875,7 @@ export default function AdminOrdersPage() {
         </DialogContent>
       </Dialog>
     </div>
+    </AdminGuard>
   )
 }
 

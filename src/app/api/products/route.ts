@@ -1,4 +1,5 @@
 import { ProductController } from '@/server/controllers/product-controller';
+import { requireAdmin } from '@/server/middleware/auth';
 
 const controller = new ProductController();
 
@@ -7,5 +8,11 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  // Require admin authentication
+  const authError = await requireAdmin(request);
+  if (authError) {
+    return authError;
+  }
+  
   return controller.create(request);
 }

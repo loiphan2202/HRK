@@ -32,7 +32,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { EditProduct } from "@/components/products/edit-product"
-import { useAuth } from "@/contexts/auth-context"
+import { useAuthStore } from "@/store/auth-store"
 interface Product {
   id: string
   name: string
@@ -59,8 +59,20 @@ interface Category {
   name: string
 }
 
+const LOADING_SKELETON_KEYS = Array.from({ length: 5 }, (_, i) => `product-skeleton-${i}`)
+
+const getStockDisplay = (stock: number | null): string | number => {
+  if (stock === null) {
+    return "Không theo dõi"
+  }
+  if (stock === -1) {
+    return "Không giới hạn"
+  }
+  return stock
+}
+
 export function ProductList() {
-  const { isAdmin } = useAuth()
+  const isAdmin = useAuthStore((state) => state.isAdmin)
   const [products, setProducts] = useState<Product[]>([])
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
@@ -90,9 +102,9 @@ export function ProductList() {
       setProducts(prev => [newProduct, ...prev])
     }
 
-    window.addEventListener('product-created', handleProductCreated as EventListener)
+    globalThis.addEventListener('product-created', handleProductCreated as EventListener)
     return () => {
-      window.removeEventListener('product-created', handleProductCreated as EventListener)
+      globalThis.removeEventListener('product-created', handleProductCreated as EventListener)
     }
   }, [])
 
@@ -152,7 +164,8 @@ export function ProductList() {
     setProducts(products.filter(p => p.id !== id))
     
     try {
-      const res = await fetch(`/api/products/${id}`, { method: "DELETE" })
+      const { apiDelete } = await import('@/lib/api-client')
+      const res = await apiDelete(`/api/products/${id}`)
       if (!res.ok) throw new Error("Failed to delete product")
       setDeleteDialog({ open: false, productId: null })
     } catch (error) {
@@ -198,8 +211,8 @@ export function ProductList() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <TableRow key={`loading-${i}`} className="animate-pulse">
+                {LOADING_SKELETON_KEYS.map((key) => (
+                  <TableRow key={key} className="animate-pulse">
                     <TableCell>
                       <div className="h-10 w-10 rounded-md bg-muted" />
                     </TableCell>
@@ -322,7 +335,7 @@ export function ProductList() {
                         {product.price.toLocaleString('vi-VN')}đ
                       </TableCell>
                       <TableCell className="text-right">
-                        {product.stock === null ? "Không theo dõi" : product.stock === -1 ? "Không giới hạn" : product.stock}
+                        {getStockDisplay(product.stock)}
                       </TableCell>
                       {isAdmin() && (
                         <TableCell className="text-right">

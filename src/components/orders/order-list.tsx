@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useAuth } from "@/contexts/auth-context"
+import { useAuthStore } from "@/store/auth-store"
 import {
   Table,
   TableBody,
@@ -50,8 +50,10 @@ async function getOrders(userId?: string): Promise<Order[]> {
   return data.data
 }
 
+const LOADING_SKELETON_KEYS = Array.from({ length: 5 }, (_, i) => `order-skeleton-${i}`)
+
 export function OrderList() {
-  const { user } = useAuth()
+  const user = useAuthStore((state) => state.user)
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -98,8 +100,8 @@ export function OrderList() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {Array.from({ length: 5 }).map((_, i) => (
-              <TableRow key={`loading-${i}`} className="animate-pulse">
+            {LOADING_SKELETON_KEYS.map((key) => (
+              <TableRow key={key} className="animate-pulse">
                 <TableCell>
                   <div className="h-4 w-[100px] rounded bg-muted" />
                 </TableCell>

@@ -5,8 +5,8 @@ import { NotFoundError, BadRequestError } from '../errors/base-error';
 import { getDataSource } from '@/lib/typeorm';
 import { OrderProduct } from '@/entities/OrderProduct';
 import { ObjectId } from 'mongodb';
-import fs from 'fs';
-import path from 'path';
+import fs from 'node:fs';
+import path from 'node:path';
 
 export class ProductServiceTypeORM {
   private readonly repository: ProductRepositoryTypeORM;

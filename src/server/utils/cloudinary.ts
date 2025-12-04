@@ -1,5 +1,11 @@
-import fs from 'node:fs';
-import path from 'node:path';
+import { v2 as cloudinary } from 'cloudinary';
+
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 type DestDir = 'users' | 'products';
 
@@ -9,25 +15,6 @@ const VALID_MIME_TYPES = new Set([
   'image/gif',
   'image/webp'
 ]);
-
-// Magic numbers for different image formats (currently unused, reserved for future validation)
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const MAGIC_NUMBERS = {
-  jpeg: [0xFF, 0xD8, 0xFF],
-  png: [0x89, 0x50, 0x4E, 0x47],
-  gif: [0x47, 0x49, 0x46, 0x38],
-  webp: [0x52, 0x49, 0x46, 0x46]
-};
-
-function getExtensionFromMimeType(mimeType: string): string | null {
-  switch (mimeType) {
-    case 'image/jpeg': return 'jpg';
-    case 'image/png': return 'png';
-    case 'image/gif': return 'gif';
-    case 'image/webp': return 'webp';
-    default: return null;
-  }
-}
 
 function isValidImageType(mimeType: string): boolean {
   return VALID_MIME_TYPES.has(mimeType);
@@ -64,7 +51,11 @@ function detectFileType(buffer: Buffer): string | null {
   return null;
 }
 
-export async function saveFile(file: Blob, dest: DestDir, prefix?: string) {
+export async function uploadToCloudinary(
+  file: Blob,
+  dest: DestDir,
+  prefix?: string
+): Promise<string> {
   if (!file) {
     throw new Error('No file provided');
   }
@@ -79,9 +70,6 @@ export async function saveFile(file: Blob, dest: DestDir, prefix?: string) {
     throw new Error('File size exceeds 5MB limit');
   }
 
-  // First check the provided MIME type
-  console.log('File type:', file.type);
-  
   // Detect file type from content
   const detectedMimeType = detectFileType(fileBuffer);
   console.log('Detected MIME type:', detectedMimeType);
@@ -91,32 +79,45 @@ export async function saveFile(file: Blob, dest: DestDir, prefix?: string) {
     throw new Error('Invalid file type. Only JPEG, PNG, GIF, and WebP images are allowed.');
   }
 
-  // Get extension from detected MIME type
-  const ext = '.' + getExtensionFromMimeType(detectedMimeType);
-  if (!ext) {
-    throw new Error('Could not determine file extension');
-  }
-
-  // Create upload directory if it doesn't exist
-  const uploadsRoot = path.join(process.cwd(), 'public', 'uploads', dest);
-  await fs.promises.mkdir(uploadsRoot, { recursive: true });
-
   // Generate safe filename
   const timestamp = Date.now();
   const safePrefix = prefix ? prefix.replaceAll(/[^a-zA-Z0-9-_]/g, '') : 'file';
-  const filename = `${safePrefix}_${timestamp}${ext}`;
-  const fullPath = path.join(uploadsRoot, filename);
+  const publicId = `${dest}/${safePrefix}_${timestamp}`;
 
-  await fs.promises.writeFile(fullPath, fileBuffer);
+  try {
+    // Convert buffer to base64 data URI for Cloudinary
+    const base64Data = fileBuffer.toString('base64');
+    const dataUri = `data:${detectedMimeType};base64,${base64Data}`;
 
-  // return public relative path
-  return `/uploads/${dest}/${filename}`;
+    // Upload to Cloudinary
+    const result = await cloudinary.uploader.upload(dataUri, {
+      folder: dest,
+      public_id: publicId,
+      resource_type: 'image',
+      overwrite: false,
+      transformation: [
+        { quality: 'auto' },
+        { fetch_format: 'auto' }
+      ]
+    });
+
+    return result.secure_url;
+  } catch (error) {
+    console.error('Error uploading to Cloudinary:', error);
+    throw new Error('Failed to upload image to Cloudinary');
+  }
 }
 
-export async function saveFileFromForm(formData: FormData, fieldName: string, dest: DestDir, prefix?: string) {
+export async function uploadFromForm(
+  formData: FormData,
+  fieldName: string,
+  dest: DestDir,
+  prefix?: string
+): Promise<string | null> {
   const entry = formData.get(fieldName);
   if (!entry) return null;
   // entry may be File or string
   if (typeof entry === 'string') return null;
-  return await saveFile(entry as Blob, dest, prefix);
+  return await uploadToCloudinary(entry as Blob, dest, prefix);
 }
+

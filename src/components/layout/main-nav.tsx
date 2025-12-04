@@ -7,8 +7,8 @@ import { cn } from "@/lib/utils"
 import { ThemeToggle } from "@/components/theme/theme-toggle"
 import { ShoppingCart, User, LogOut, Settings, Menu, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { useCart } from "@/contexts/cart-context"
-import { useAuth } from "@/contexts/auth-context"
+import { useCartStore } from "@/store/cart-store"
+import { useAuthStore } from "@/store/auth-store"
 import { useState } from "react"
 import {
   DropdownMenu,
@@ -29,24 +29,28 @@ import {
 export function MainNav() {
   const pathname = usePathname()
   const router = useRouter()
-  const { getItemCount } = useCart()
-  const { user, logout, isLoading, isAdmin } = useAuth()
+  const getItemCount = useCartStore((state) => state.getItemCount)
+  const user = useAuthStore((state) => state.user)
+  const logout = useAuthStore((state) => state.logout)
+  const isLoading = useAuthStore((state) => state.isLoading)
+  const isAdmin = useAuthStore((state) => state.isAdmin)
   const itemCount = getItemCount()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   // Mục điều hướng dựa trên vai trò
-  const navigation = user && isAdmin() 
-    ? [
-        { name: "Sản phẩm", href: "/admin/products" },
-        { name: "Danh mục", href: "/admin/categories" },
-        { name: "Bàn", href: "/admin/tables" },
-        { name: "Đơn hàng", href: "/admin/orders" },
-      ]
-    : user
-    ? [
-        { name: "Đơn hàng", href: "/orders" },
-      ]
-    : []
+  let navigation: Array<{ name: string; href: string }> = []
+  if (user && isAdmin()) {
+    navigation = [
+      { name: "Sản phẩm", href: "/admin/products" },
+      { name: "Danh mục", href: "/admin/categories" },
+      { name: "Bàn", href: "/admin/tables" },
+      { name: "Đơn hàng", href: "/admin/orders" },
+    ]
+  } else if (user) {
+    navigation = [
+      { name: "Đơn hàng", href: "/orders" },
+    ]
+  }
 
   const handleLogout = () => {
     logout()
@@ -92,7 +96,6 @@ export function MainNav() {
                   </Link>
                 ))}
                 {user && (
-                  <>
                     <div className="border-t pt-4 mt-4">
                       <Link
                         href="/settings"
@@ -138,7 +141,6 @@ export function MainNav() {
                         </Link>
                       )}
                     </div>
-                  </>
                 )}
               </nav>
             </SheetContent>

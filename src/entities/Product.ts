@@ -1,5 +1,7 @@
 import { Entity, ObjectIdColumn, Column } from 'typeorm';
 import { ObjectId } from 'mongodb';
+import { ProductCategory } from './ProductCategory';
+import { OrderProduct } from './OrderProduct';
 
 @Entity('products')
 export class Product {
@@ -22,6 +24,6 @@ export class Product {
   stock?: number | null; // null = no stock tracking, -1 = unlimited, >=0 = actual stock
 
   // Relations
-  categories?: any[]; // ProductCategory[]
-  orderProducts?: any[]; // OrderProduct[]
+  categories?: ProductCategory[];
+  orderProducts?: OrderProduct[];
 }
