@@ -12,6 +12,7 @@ import { ShoppingCart, ArrowLeft, Plus, Minus } from "lucide-react"
 import { useCartStore } from "@/store/cart-store"
 import { useAuthStore } from "@/store/auth-store"
 import { useToast } from "@/components/ui/use-toast"
+import { ProductJsonLd } from "@/components/seo/json-ld"
 
 interface Product {
   id: string
@@ -159,16 +160,20 @@ export default function ProductDetailPage() {
     )
   }
 
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+
   return (
-    <div className="flex flex-col space-y-6 sm:space-y-8 w-full px-4 sm:px-6 lg:px-0">
-      <Button
-        variant="ghost"
-        onClick={() => router.back()}
-        className="w-fit"
-      >
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        Quay lại
-      </Button>
+    <>
+      {product && <ProductJsonLd product={product} baseUrl={baseUrl} />}
+      <div className="flex flex-col space-y-6 sm:space-y-8 w-full px-4 sm:px-6 lg:px-0">
+        <Button
+          variant="ghost"
+          onClick={() => router.back()}
+          className="w-fit"
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Quay lại
+        </Button>
 
       <div className="grid gap-6 sm:gap-8 md:grid-cols-2">
         <div className="relative aspect-square w-full overflow-hidden rounded-lg border-2 max-h-[500px]">
@@ -274,7 +279,8 @@ export default function ProductDetailPage() {
           )}
         </div>
       </div>
-    </div>
+      </div>
+    </>
   )
 }
 
