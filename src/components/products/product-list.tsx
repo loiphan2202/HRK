@@ -32,7 +32,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { EditProduct } from "@/components/products/edit-product"
-import { useAuth } from "@/contexts/auth-context"
+import { useAuthStore } from "@/store/auth-store"
 interface Product {
   id: string
   name: string
@@ -59,8 +59,20 @@ interface Category {
   name: string
 }
 
+const LOADING_SKELETON_KEYS = Array.from({ length: 5 }, (_, i) => `product-skeleton-${i}`)
+
+const getStockDisplay = (stock: number | null): string | number => {
+  if (stock === null) {
+    return "Không theo dõi"
+  }
+  if (stock === -1) {
+    return "Không giới hạn"
+  }
+  return stock
+}
+
 export function ProductList() {
-  const { isAdmin } = useAuth()
+  const isAdmin = useAuthStore((state) => state.isAdmin)
   const [products, setProducts] = useState<Product[]>([])
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
@@ -90,9 +102,9 @@ export function ProductList() {
       setProducts(prev => [newProduct, ...prev])
     }
 
-    window.addEventListener('product-created', handleProductCreated as EventListener)
+    globalThis.addEventListener('product-created', handleProductCreated as EventListener)
     return () => {
-      window.removeEventListener('product-created', handleProductCreated as EventListener)
+      globalThis.removeEventListener('product-created', handleProductCreated as EventListener)
     }
   }, [])
 
@@ -152,7 +164,8 @@ export function ProductList() {
     setProducts(products.filter(p => p.id !== id))
     
     try {
-      const res = await fetch(`/api/products/${id}`, { method: "DELETE" })
+      const { apiDelete } = await import('@/lib/api-client')
+      const res = await apiDelete(`/api/products/${id}`)
       if (!res.ok) throw new Error("Failed to delete product")
       setDeleteDialog({ open: false, productId: null })
     } catch (error) {
@@ -181,47 +194,51 @@ export function ProductList() {
 
   if (loading) {
     return (
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[100px]">Image</TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead className="text-right">Price</TableHead>
-              <TableHead className="text-right">Stock</TableHead>
-              {isAdmin() && (
-                <TableHead className="text-right w-[100px]">Actions</TableHead>
-              )}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {Array.from({ length: 5 }).map((_, i) => (
-              <TableRow key={`loading-${i}`} className="animate-pulse">
-                <TableCell>
-                  <div className="h-10 w-10 rounded-md bg-muted" />
-                </TableCell>
-                <TableCell>
-                  <div className="h-4 w-[200px] rounded bg-muted" />
-                </TableCell>
-                <TableCell>
-                  <div className="h-4 w-[300px] rounded bg-muted" />
-                </TableCell>
-                <TableCell className="text-right">
-                  <div className="h-4 w-[60px] rounded bg-muted ml-auto" />
-                </TableCell>
-                <TableCell className="text-right">
-                  <div className="h-4 w-10 rounded bg-muted ml-auto" />
-                </TableCell>
-                {isAdmin() && (
-                  <TableCell>
-                    <div className="h-8 w-[100px] rounded bg-muted ml-auto" />
-                  </TableCell>
-                )}
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+      <div className="rounded-md border overflow-hidden">
+        <div className="overflow-x-auto -mx-4 sm:mx-0">
+          <div className="inline-block min-w-full align-middle px-4 sm:px-0">
+            <Table>
+              <TableHeader className="sticky top-0 bg-background z-10">
+                <TableRow>
+                  <TableHead className="min-w-[80px]">Image</TableHead>
+                  <TableHead className="min-w-[150px]">Name</TableHead>
+                  <TableHead className="min-w-[200px] hidden md:table-cell">Description</TableHead>
+                  <TableHead className="text-right min-w-[100px]">Price</TableHead>
+                  <TableHead className="text-right min-w-[80px]">Stock</TableHead>
+                  {isAdmin() && (
+                    <TableHead className="text-right min-w-[100px]">Actions</TableHead>
+                  )}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {LOADING_SKELETON_KEYS.map((key) => (
+                  <TableRow key={key} className="animate-pulse">
+                    <TableCell>
+                      <div className="h-10 w-10 rounded-md bg-muted" />
+                    </TableCell>
+                    <TableCell>
+                      <div className="h-4 w-[200px] rounded bg-muted" />
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell">
+                      <div className="h-4 w-[300px] rounded bg-muted" />
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="h-4 w-[60px] rounded bg-muted ml-auto" />
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="h-4 w-10 rounded bg-muted ml-auto" />
+                    </TableCell>
+                    {isAdmin() && (
+                      <TableCell>
+                        <div className="h-8 w-[100px] rounded bg-muted ml-auto" />
+                      </TableCell>
+                    )}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
       </div>
     )
   }
@@ -271,83 +288,87 @@ export function ProductList() {
         </div>
       </div>
 
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[100px]">Image</TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead className="text-right">Price</TableHead>
-              <TableHead className="text-right">Stock</TableHead>
-              {isAdmin() && (
-                <TableHead className="text-right w-[100px]">Actions</TableHead>
-              )}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredProducts.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={isAdmin() ? 6 : 5} className="text-center text-muted-foreground">
-                  Không tìm thấy sản phẩm.
-                </TableCell>
-              </TableRow>
-            ) : (
-              filteredProducts.map((product) => (
-              <TableRow key={product.id}>
-                <TableCell>
-                  {product.image ? (
-                    <Image
-                      src={product.image}
-                      alt={product.name}
-                      width={40}
-                      height={40}
-                      className="rounded-md object-cover"
-                    />
-                  ) : (
-                    <div className="h-10 w-10 rounded-md bg-muted" />
+      <div className="rounded-md border overflow-hidden">
+        <div className="overflow-x-auto -mx-4 sm:mx-0">
+          <div className="inline-block min-w-full align-middle px-4 sm:px-0">
+            <Table>
+              <TableHeader className="sticky top-0 bg-background z-10">
+                <TableRow>
+                  <TableHead className="min-w-[80px]">Image</TableHead>
+                  <TableHead className="min-w-[150px]">Name</TableHead>
+                  <TableHead className="min-w-[200px] hidden md:table-cell">Description</TableHead>
+                  <TableHead className="text-right min-w-[100px]">Price</TableHead>
+                  <TableHead className="text-right min-w-[80px]">Stock</TableHead>
+                  {isAdmin() && (
+                    <TableHead className="text-right min-w-[100px]">Actions</TableHead>
                   )}
-                </TableCell>
-                <TableCell className="font-medium">{product.name}</TableCell>
-                <TableCell className="max-w-[300px] truncate">
-                  {product.description}
-                </TableCell>
-                <TableCell className="text-right">
-                  {product.price.toLocaleString('vi-VN')}đ
-                </TableCell>
-                <TableCell className="text-right">
-                  {product.stock === null ? "Không theo dõi" : product.stock === -1 ? "Không giới hạn" : product.stock}
-                </TableCell>
-                {isAdmin() && (
-                  <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreHorizontal className="h-4 w-4" />
-                          <span className="sr-only">Open menu</span>
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem onClick={() => setEditDialog({ open: true, product })}>
-                          <Edit2 className="mr-2 h-4 w-4" />
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="text-red-600"
-                          onClick={() => setDeleteDialog({ open: true, productId: product.id })}
-                        >
-                          <Trash className="mr-2 h-4 w-4" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                )}
-              </TableRow>
-            )))}
-          </TableBody>
-        </Table>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredProducts.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={isAdmin() ? 6 : 5} className="text-center text-muted-foreground">
+                      Không tìm thấy sản phẩm.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredProducts.map((product) => (
+                    <TableRow key={product.id}>
+                      <TableCell>
+                        {product.image ? (
+                          <Image
+                            src={product.image}
+                            alt={product.name}
+                            width={40}
+                            height={40}
+                            className="rounded-md object-cover"
+                          />
+                        ) : (
+                          <div className="h-10 w-10 rounded-md bg-muted" />
+                        )}
+                      </TableCell>
+                      <TableCell className="font-medium">{product.name}</TableCell>
+                      <TableCell className="max-w-[300px] truncate hidden md:table-cell">
+                        {product.description}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {product.price.toLocaleString('vi-VN')}đ
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {getStockDisplay(product.stock)}
+                      </TableCell>
+                      {isAdmin() && (
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <MoreHorizontal className="h-4 w-4" />
+                                <span className="sr-only">Open menu</span>
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                              <DropdownMenuItem onClick={() => setEditDialog({ open: true, product })}>
+                                <Edit2 className="mr-2 h-4 w-4" />
+                                Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                className="text-red-600"
+                                onClick={() => setDeleteDialog({ open: true, productId: product.id })}
+                              >
+                                <Trash className="mr-2 h-4 w-4" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  )))}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
       </div>
 
       <AlertDialog open={deleteDialog.open} onOpenChange={(open: boolean) => setDeleteDialog({ open, productId: null })}>

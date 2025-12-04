@@ -1,17 +1,19 @@
 import { NextResponse } from 'next/server';
-import { UserService } from '@/server/services/user-service';
+import { UserServiceTypeORM } from '@/server/services/user-service-typeorm';
 
 export async function POST() {
   try {
-    const userService = new UserService();
+    const userService = new UserServiceTypeORM();
     
     // Check if admin already exists
     const existingAdmin = await userService.findByEmail('admin1@gmail.com');
     if (existingAdmin) {
+      const adminId = typeof existingAdmin.id === 'string' ? existingAdmin.id : existingAdmin.id.toString();
       return NextResponse.json({ 
         success: true, 
         message: 'Admin account already exists',
-        exists: true
+        exists: true,
+        data: { id: adminId, email: existingAdmin.email }
       });
     }
 
@@ -23,10 +25,11 @@ export async function POST() {
       role: 'ADMIN',
     });
 
+    const adminId = typeof admin.id === 'string' ? admin.id : admin.id.toString();
     return NextResponse.json({ 
       success: true, 
       message: 'Admin account created successfully',
-      data: { id: admin.id, email: admin.email }
+      data: { id: adminId, email: admin.email }
     });
   } catch (error: unknown) {
     console.error('Failed to init admin:', error);
@@ -40,7 +43,7 @@ export async function POST() {
 
 export async function GET() {
   try {
-    const userService = new UserService();
+    const userService = new UserServiceTypeORM();
     const existingAdmin = await userService.findByEmail('admin1@gmail.com');
     
     return NextResponse.json({ 

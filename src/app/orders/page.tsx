@@ -1,13 +1,13 @@
 "use client"
 
-import { Suspense } from "react"
 import { OrderList } from "@/components/orders/order-list"
-import { useAuth } from "@/contexts/auth-context"
+import { useAuthStore } from "@/store/auth-store"
 import { useRouter } from "next/navigation"
-import { useEffect } from "react"
+import { useEffect, Suspense } from "react"
 
 export default function OrdersPage() {
-  const { user, isLoading } = useAuth()
+  const user = useAuthStore((state) => state.user)
+  const isLoading = useAuthStore((state) => state.isLoading)
   const router = useRouter()
 
   useEffect(() => {

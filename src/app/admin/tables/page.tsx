@@ -1,12 +1,15 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useAuth } from "@/contexts/auth-context"
-import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
+import { AdminGuard } from "@/components/auth/admin-guard"
+import { useToast } from "@/components/ui/use-toast"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Badge } from "@/components/ui/badge"
+import { Plus, QrCode, CreditCard, Printer, FileDown, Edit2, Trash2, MoreHorizontal, Download, Copy } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
   Table,
   TableBody,
@@ -15,9 +18,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
-import { Plus, QrCode, CreditCard, Printer, FileDown } from "lucide-react"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
   Dialog,
   DialogContent,
@@ -27,7 +27,38 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { Copy } from "lucide-react"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+
+type OrderStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'CANCELLED'
+
+const getStatusName = (status: string): string => {
+  if (status === 'PENDING') return 'Chờ xử lý'
+  if (status === 'PROCESSING') return 'Đang xử lý'
+  if (status === 'COMPLETED') return 'Hoàn thành'
+  return 'Đã hủy'
+}
+
+const getTableStatusName = (status: 'AVAILABLE' | 'OCCUPIED' | 'RESERVED'): string => {
+  if (status === 'AVAILABLE') return 'Trống'
+  if (status === 'OCCUPIED') return 'Đang dùng'
+  return 'Đã đặt'
+}
 
 interface TableData {
   id: string
@@ -38,8 +69,7 @@ interface TableData {
 }
 
 export default function AdminTablesPage() {
-  const { isAdmin, isLoading } = useAuth()
-  const router = useRouter()
+  const { toast } = useToast()
   const [tables, setTables] = useState<TableData[]>([])
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -49,6 +79,9 @@ export default function AdminTablesPage() {
   const [selectedQr, setSelectedQr] = useState<{ image: string; url: string; tableNumber: number } | null>(null)
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false)
   const [selectedTable, setSelectedTable] = useState<TableData | null>(null)
+  const [editDialog, setEditDialog] = useState<{ open: boolean; table: TableData | null }>({ open: false, table: null })
+  const [editTableNumber, setEditTableNumber] = useState("")
+  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; table: TableData | null }>({ open: false, table: null })
   const [tableOrders, setTableOrders] = useState<Array<{
     id: string
     total: number
@@ -78,12 +111,9 @@ export default function AdminTablesPage() {
   const [vat, setVat] = useState(10) // VAT %
   const [discount, setDiscount] = useState(0) // Discount amount
   const [processingPayment, setProcessingPayment] = useState(false)
+  const [orderStatuses, setOrderStatuses] = useState<Record<string, OrderStatus>>({})
+  const [defaultOrderStatus, setDefaultOrderStatus] = useState<OrderStatus>('COMPLETED')
 
-  useEffect(() => {
-    if (!isLoading && !isAdmin()) {
-      router.push("/")
-    }
-  }, [isLoading, isAdmin, router])
 
   useEffect(() => {
     loadTables()
@@ -92,7 +122,8 @@ export default function AdminTablesPage() {
   async function loadTables() {
     try {
       setLoading(true)
-      const res = await fetch("/api/tables")
+      const { apiGet } = await import('@/lib/api-client')
+      const res = await apiGet("/api/tables")
       const data = await res.json()
       setTables(data.data || [])
     } catch (error) {
@@ -104,37 +135,96 @@ export default function AdminTablesPage() {
 
   async function createTable() {
     try {
-      const res = await fetch("/api/tables", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ number: parseInt(tableNumber) }),
-      })
+      const { apiPost } = await import('@/lib/api-client')
+      const res = await apiPost("/api/tables", { number: Number.parseInt(tableNumber) })
 
       if (!res.ok) throw new Error("Failed to create table")
 
       setTableNumber("")
       setDialogOpen(false)
       await loadTables()
+      toast({
+        title: "Thành công",
+        description: "Đã tạo bàn mới thành công.",
+      })
     } catch (error) {
       console.error("Failed to create table:", error)
-      alert("Failed to create table. Table number may already exist.")
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: "Không thể tạo bàn. Số bàn có thể đã tồn tại.",
+      })
+    }
+  }
+
+  async function updateTable(id: string, number: number) {
+    try {
+      const { apiPut } = await import('@/lib/api-client')
+      const res = await apiPut(`/api/tables/${id}`, { number })
+
+      if (!res.ok) throw new Error("Failed to update table")
+
+      setEditDialog({ open: false, table: null })
+      setEditTableNumber("")
+      await loadTables()
+      toast({
+        title: "Thành công",
+        description: "Đã cập nhật bàn thành công.",
+      })
+    } catch (error) {
+      console.error("Failed to update table:", error)
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: "Không thể cập nhật bàn. Số bàn có thể đã tồn tại.",
+      })
+    }
+  }
+
+  async function deleteTable(id: string) {
+    try {
+      const { apiDelete } = await import('@/lib/api-client')
+      const res = await apiDelete(`/api/tables/${id}`)
+
+      if (!res.ok) throw new Error("Failed to delete table")
+
+      setDeleteDialog({ open: false, table: null })
+      await loadTables()
+      toast({
+        title: "Thành công",
+        description: "Đã xóa bàn thành công.",
+      })
+    } catch (error) {
+      console.error("Failed to delete table:", error)
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: "Không thể xóa bàn.",
+      })
     }
   }
 
   async function generateQrCode(tableId: string) {
     try {
       setCreatingQr(tableId)
-      const res = await fetch(`/api/tables/${tableId}/qr`, {
-        method: "POST",
-      })
+      const { apiPost } = await import('@/lib/api-client')
+      const res = await apiPost(`/api/tables/${tableId}/qr`, {})
 
       if (!res.ok) throw new Error("Failed to generate QR code")
 
       await res.json()
       await loadTables()
+      toast({
+        title: "Thành công",
+        description: "Đã tạo mã QR thành công.",
+      })
     } catch (error) {
       console.error("Failed to generate QR code:", error)
-      alert("Failed to generate QR code")
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: "Không thể tạo mã QR.",
+      })
     } finally {
       setCreatingQr(null)
     }
@@ -145,8 +235,14 @@ export default function AdminTablesPage() {
       setLoadingOrders(true)
       // Load cả PENDING và PROCESSING orders để thanh toán
       const [pendingRes, processingRes] = await Promise.all([
-        fetch(`/api/orders?tableNumber=${tableNumber}&status=PENDING`),
-        fetch(`/api/orders?tableNumber=${tableNumber}&status=PROCESSING`)
+        (async () => {
+          const { apiGet } = await import('@/lib/api-client')
+          return apiGet(`/api/orders?tableNumber=${tableNumber}&status=PENDING`)
+        })(),
+        (async () => {
+          const { apiGet } = await import('@/lib/api-client')
+          return apiGet(`/api/orders?tableNumber=${tableNumber}&status=PROCESSING`)
+        })()
       ])
       
       const pendingData = await pendingRes.json()
@@ -169,6 +265,9 @@ export default function AdminTablesPage() {
   async function openPaymentDialog(table: TableData) {
     setSelectedTable(table)
     await loadTableOrders(table.number)
+    // Initialize order statuses với default status hoặc giữ nguyên status hiện tại
+    const initialStatuses: Record<string, OrderStatus> = {}
+    setOrderStatuses(initialStatuses)
     setPaymentDialogOpen(true)
   }
 
@@ -177,50 +276,150 @@ export default function AdminTablesPage() {
 
     setProcessingPayment(true)
     try {
-      // Update all orders to COMPLETED
+      // Update orders với status được chọn (hoặc default status nếu không có)
+      const { apiPut } = await import('@/lib/api-client')
       await Promise.all(
-        tableOrders.map(order =>
-          fetch(`/api/orders/${order.id}`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ status: "COMPLETED" }),
-          })
-        )
+        tableOrders.map(order => {
+          const statusToSet = orderStatuses[order.id] || defaultOrderStatus
+          return apiPut(`/api/orders/${order.id}`, { status: statusToSet })
+        })
       )
 
-      // Update table status to AVAILABLE
-      await fetch(`/api/tables/${selectedTable.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "AVAILABLE" }),
+      // Chỉ update table status to AVAILABLE nếu tất cả orders đều COMPLETED hoặc CANCELLED
+      const allCompletedOrCancelled = tableOrders.every(order => {
+        const status = orderStatuses[order.id] || defaultOrderStatus
+        return status === 'COMPLETED' || status === 'CANCELLED'
       })
+
+      // Chỉ update table to AVAILABLE nếu tất cả orders đã hoàn thành hoặc hủy
+      if (allCompletedOrCancelled) {
+        await fetch(`/api/tables/${selectedTable.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "AVAILABLE" }),
+        })
+      }
+
+      // Lưu statusCounts và statusText trước khi clear state
+      const statusCounts = tableOrders.reduce((acc, order) => {
+        const status = orderStatuses[order.id] || defaultOrderStatus
+        acc[status] = (acc[status] || 0) + 1
+        return acc
+      }, {} as Record<string, number>)
+      
+      const statusText = Object.entries(statusCounts)
+        .map(([status, count]) => {
+          const statusName = getStatusName(status)
+          return `${statusName} (${count})`
+        })
+        .join(', ')
 
       setPaymentDialogOpen(false)
       setSelectedTable(null)
       setTableOrders([])
+      setOrderStatuses({})
       await loadTables()
-      alert("Thanh toán thành công!")
+      
+      toast({
+        title: "Cập nhật thành công!",
+        description: `Đã cập nhật trạng thái đơn hàng: ${statusText}.`,
+      })
     } catch (error) {
       console.error("Payment failed:", error)
-      alert("Thanh toán thất bại. Vui lòng thử lại.")
+      toast({
+        variant: "destructive",
+        title: "Thanh toán thất bại",
+        description: "Vui lòng thử lại.",
+      })
     } finally {
       setProcessingPayment(false)
     }
   }
 
   function printInvoice() {
-    window.print()
+    // Tạo window mới với HTML đầy đủ chi tiết món ăn
+    const totals = calculateTotal()
+    const invoiceHTML = generateInvoiceHTML(totals)
+    
+    const printWindow = window.open('', '_blank')
+    if (printWindow) {
+      printWindow.document.open()
+      // eslint-disable-next-line deprecation/deprecation
+      printWindow.document.write(invoiceHTML)
+      printWindow.document.close()
+      printWindow.onload = () => {
+        printWindow.print()
+      }
+    }
   }
 
-  function exportInvoiceToPDF() {
-    const invoiceContent = document.getElementById('invoice-content')
-    if (!invoiceContent || !selectedTable) return
-
-    // Tính tổng
-    const totals = calculateTotal()
+  const getCustomerInfoHTML = (): string => {
+    if (tableOrders.length === 0 || !tableOrders[0]?.user) {
+      return '<p><strong>Khách hàng:</strong> Khách hàng</p>'
+    }
     
-    // Tạo HTML content cho hóa đơn với đầy đủ thông tin
-    const invoiceHTML = `
+    const user = tableOrders[0].user
+    const customerName = user.name || user.email
+    const emailHTML = user.email ? `<p><strong>Email:</strong> ${user.email}</p>` : ''
+    
+    return `
+      <div class="customer-info">
+        <p><strong>Khách hàng:</strong> ${customerName}</p>
+        ${emailHTML}
+      </div>
+    `
+  }
+
+  function generateInvoiceHTML(totals: { subtotal: number; vatAmount: number; total: number }) {
+    if (!selectedTable) return ''
+    
+    // Tạo HTML cho chi tiết món ăn từ các orders
+    const orderDetailsHTML = tableOrders.map((order) => {
+      const orderItemsHTML = order.orderProducts && order.orderProducts.length > 0
+        ? order.orderProducts.map((op: { id: string; quantity: number; product?: { id: string; name: string; price: number; description: string | null; image: string | null } | null }) => {
+            const itemTotal = (op.product?.price || 0) * op.quantity
+            return `
+              <tr>
+                <td style="padding: 8px; border: 1px solid #ddd;">${op.product?.name || "Không xác định"}</td>
+                <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${op.quantity}</td>
+                <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${(op.product?.price || 0).toLocaleString('vi-VN')}đ</td>
+                <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold;">${itemTotal.toLocaleString('vi-VN')}đ</td>
+              </tr>
+            `
+          }).join('')
+        : '<tr><td colspan="4" style="padding: 8px; border: 1px solid #ddd; text-align: center;">Không có món nào</td></tr>'
+
+      return `
+        <div class="order-section">
+          <h3 style="margin: 15px 0 10px 0; font-size: 16px; font-weight: bold;">Đơn #${order.id.slice(-8)}</h3>
+          <p style="margin: 5px 0; font-size: 12px; color: #666;">
+            Khách hàng: ${order.user ? (order.user.name || order.user.email) : 'Khách hàng'} | 
+            Đặt món: ${new Date(order.createdAt).toLocaleString('vi-VN')}
+          </p>
+          <table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
+            <thead>
+              <tr style="background-color: #f2f2f2;">
+                <th style="padding: 10px; border: 1px solid #ddd; text-align: left; font-weight: bold;">Tên món</th>
+                <th style="padding: 10px; border: 1px solid #ddd; text-align: center; font-weight: bold;">SL</th>
+                <th style="padding: 10px; border: 1px solid #ddd; text-align: right; font-weight: bold;">Đơn giá</th>
+                <th style="padding: 10px; border: 1px solid #ddd; text-align: right; font-weight: bold;">Thành tiền</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${orderItemsHTML}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colspan="3" style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold;">Tổng đơn:</td>
+                <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold;">${order.total.toLocaleString('vi-VN')}đ</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      `
+    }).join('')
+
+    return `
       <!DOCTYPE html>
       <html>
         <head>
@@ -248,14 +447,11 @@ export default function AdminTablesPage() {
             <h1>HÓA ĐƠN THANH TOÁN</h1>
             <p>Bàn số ${selectedTable.number}</p>
             <p>Ngày in: ${new Date().toLocaleString('vi-VN')}</p>
-            ${tableOrders.length > 0 && tableOrders[0]?.user ? `
-              <div class="customer-info">
-                <p><strong>Khách hàng:</strong> ${tableOrders[0].user.name || tableOrders[0].user.email}</p>
-                ${tableOrders[0].user.email ? `<p><strong>Email:</strong> ${tableOrders[0].user.email}</p>` : ''}
-              </div>
-            ` : '<p><strong>Khách hàng:</strong> Khách hàng</p>'}
+            ${getCustomerInfoHTML()}
           </div>
-          ${invoiceContent.innerHTML}
+          <div class="order-details">
+            ${orderDetailsHTML}
+          </div>
           <div class="summary">
             <table>
               <tr>
@@ -285,9 +481,21 @@ export default function AdminTablesPage() {
         </body>
       </html>
     `
+  }
+
+  function exportInvoiceToPDF() {
+    if (!selectedTable) return
+
+    // Tính tổng
+    const totals = calculateTotal()
+    
+    // Tạo HTML content cho hóa đơn với đầy đủ thông tin
+    const invoiceHTML = generateInvoiceHTML(totals)
     
     const printWindow = window.open('', '_blank')
     if (printWindow) {
+      printWindow.document.open()
+      // eslint-disable-next-line deprecation/deprecation
       printWindow.document.write(invoiceHTML)
       printWindow.document.close()
       printWindow.onload = () => {
@@ -313,26 +521,19 @@ export default function AdminTablesPage() {
     }
   }
 
-  if (isLoading || !isAdmin()) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <p className="text-muted-foreground">Đang tải...</p>
-      </div>
-    )
-  }
-
   return (
-    <div className="flex flex-col space-y-8 w-full">
-      <div className="flex items-center justify-between">
+    <AdminGuard>
+      <div className="flex flex-col space-y-6 sm:space-y-8 w-full px-4 sm:px-6 lg:px-0">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-4xl font-bold tracking-tight">Quản lý bàn</h1>
-          <p className="text-muted-foreground mt-2">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight">Quản lý bàn</h1>
+          <p className="text-sm sm:text-base text-muted-foreground mt-2">
             Quản lý bàn nhà hàng và tạo mã QR
           </p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
-            <Button>
+            <Button className="w-full sm:w-auto">
               <Plus className="mr-2 h-4 w-4" />
               Thêm bàn
             </Button>
@@ -376,95 +577,131 @@ export default function AdminTablesPage() {
           </CardContent>
         </Card>
       ) : (
-        <Card>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Số bàn</TableHead>
-                <TableHead>Trạng thái</TableHead>
-                <TableHead>Mã QR</TableHead>
-                <TableHead>Hành động</TableHead>
-                <TableHead></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {tables.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={4} className="text-center text-muted-foreground">
-                    Không tìm thấy bàn
-                  </TableCell>
-                </TableRow>
-              ) : (
-                tables.map((table) => (
-                  <TableRow key={table.id}>
-                    <TableCell className="font-medium">Bàn {table.number}</TableCell>
-                    <TableCell>
-                      <Badge className={getStatusColor(table.status)}>
-                        {table.status === 'AVAILABLE' ? 'Trống' : 
-                         table.status === 'OCCUPIED' ? 'Đang dùng' : 
-                         'Đã đặt'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {table.qrCode ? (
-                        <div className="flex items-center gap-2">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={table.qrCode}
-                            alt={`QR Code for Table ${table.number}`}
-                            width={64}
-                            height={64}
-                            className="object-contain border rounded cursor-pointer hover:opacity-80 transition-opacity"
-                            onClick={() => {
-                              if (table.token && table.qrCode) {
-                                // Construct URL from current origin
-                                const url = `${window.location.origin}/check-in?token=${table.token}`;
-                                setSelectedQr({
-                                  image: table.qrCode,
-                                  url: url,
-                                  tableNumber: table.number,
-                                });
-                                setQrDialogOpen(true);
-                              }
-                            }}
-                          />
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground">Chưa tạo</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => generateQrCode(table.id)}
-                          disabled={creatingQr === table.id}
-                        >
-                          <QrCode className="mr-2 h-4 w-4" />
-                          {creatingQr === table.id ? "Đang tạo..." : "Tạo QR"}
-                        </Button>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        {table.status === 'OCCUPIED' && (
-                          <Button
-                            variant="default"
-                            size="sm"
-                            onClick={() => openPaymentDialog(table)}
-                          >
-                            <CreditCard className="mr-2 h-4 w-4" />
-                            Thanh toán
-                          </Button>
-                        )}
-                      </div>
-                    </TableCell>
+        <Card className="overflow-hidden">
+          <div className="overflow-x-auto -mx-4 sm:mx-0">
+            <div className="inline-block min-w-full align-middle px-4 sm:px-0">
+              <Table>
+                <TableHeader className="sticky top-0 bg-background z-10">
+                  <TableRow>
+                    <TableHead className="min-w-[100px]">Số bàn</TableHead>
+                    <TableHead className="min-w-[120px]">Trạng thái</TableHead>
+                    <TableHead className="min-w-[100px]">Mã QR</TableHead>
+                    <TableHead className="min-w-[100px] text-center">QR Code</TableHead>
+                    <TableHead className="min-w-[100px] text-center">Chi tiết</TableHead>
+                    <TableHead className="min-w-[80px] text-center">Hành động</TableHead>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                </TableHeader>
+                <TableBody>
+                  {tables.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center text-muted-foreground">
+                        Không tìm thấy bàn
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    tables.map((table) => (
+                      <TableRow key={table.id}>
+                        <TableCell className="font-medium">Bàn {table.number}</TableCell>
+                        <TableCell>
+                          <Badge className={getStatusColor(table.status)}>
+                            {getTableStatusName(table.status)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {table.qrCode ? (
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (table.token && table.qrCode) {
+                                    // Construct URL from current origin
+                                    const url = `${globalThis.location.origin}/check-in?token=${table.token}`;
+                                    setSelectedQr({
+                                      image: table.qrCode,
+                                      url: url,
+                                      tableNumber: table.number,
+                                    });
+                                    setQrDialogOpen(true);
+                                  }
+                                }}
+                                className="cursor-pointer hover:opacity-80 transition-opacity border-0 bg-transparent p-0"
+                                aria-label={`Xem QR Code cho Bàn ${table.number}`}
+                              >
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={table.qrCode}
+                                  alt={`QR Code for Table ${table.number}`}
+                                  width={48}
+                                  height={48}
+                                  className="object-contain border rounded block"
+                                />
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">Chưa tạo</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => generateQrCode(table.id)}
+                            disabled={creatingQr === table.id}
+                            className="text-xs whitespace-nowrap"
+                          >
+                            <QrCode className="mr-1 h-3 w-3" />
+                            {creatingQr === table.id ? "..." : "QR"}
+                          </Button>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {table.status === 'OCCUPIED' && (
+                            <Button
+                              variant="default"
+                              size="sm"
+                              onClick={() => openPaymentDialog(table)}
+                              className="text-xs whitespace-nowrap"
+                            >
+                              <CreditCard className="mr-1 h-3 w-3" />
+                              Chi tiết
+                            </Button>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+                                <MoreHorizontal className="h-4 w-4" />
+                                <span className="sr-only">Menu</span>
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuLabel>Hành động</DropdownMenuLabel>
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  setEditDialog({ open: true, table })
+                                  setEditTableNumber(table.number.toString())
+                                }}
+                              >
+                                <Edit2 className="mr-2 h-4 w-4" />
+                                Chỉnh sửa
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                className="text-red-600"
+                                onClick={() => setDeleteDialog({ open: true, table })}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Xóa
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
         </Card>
       )}
 
@@ -501,7 +738,10 @@ export default function AdminTablesPage() {
                       size="icon"
                       onClick={() => {
                         navigator.clipboard.writeText(selectedQr.url);
-                        // You could add a toast notification here
+                        toast({
+                          title: "Đã sao chép",
+                          description: "URL đã được sao chép vào clipboard",
+                        });
                       }}
                     >
                       <Copy className="h-4 w-4" />
@@ -512,6 +752,26 @@ export default function AdminTablesPage() {
             )}
           </div>
           <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (selectedQr) {
+                  const link = document.createElement('a');
+                  link.href = selectedQr.image;
+                  link.download = `QR-Ban-${selectedQr.tableNumber}.png`;
+                  document.body.appendChild(link);
+                  link.click();
+                  link.remove();
+                  toast({
+                    title: "Đã tải xuống",
+                    description: "Mã QR đã được tải xuống thành công",
+                  });
+                }
+              }}
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Tải mã QR
+            </Button>
             <Button onClick={() => setQrDialogOpen(false)}>Đóng</Button>
           </DialogFooter>
         </DialogContent>
@@ -527,15 +787,22 @@ export default function AdminTablesPage() {
             </DialogDescription>
           </DialogHeader>
           
-          {loadingOrders ? (
-            <div className="py-8 text-center text-muted-foreground">
-              Đang tải đơn hàng...
-            </div>
-          ) : tableOrders.length === 0 ? (
-            <div className="py-8 text-center text-muted-foreground">
-              Không có đơn hàng nào cho bàn này
-            </div>
-          ) : (
+          {(() => {
+            if (loadingOrders) {
+              return (
+                <div className="py-8 text-center text-muted-foreground">
+                  Đang tải đơn hàng...
+                </div>
+              );
+            }
+            if (tableOrders.length === 0) {
+              return (
+                <div className="py-8 text-center text-muted-foreground">
+                  Không có đơn hàng nào cho bàn này
+                </div>
+              );
+            }
+            return (
             <div id="invoice-content" className="space-y-4">
               {/* Invoice Header - chỉ hiển thị khi in */}
               <div className="hidden mb-4 text-center border-b pb-4" data-print="show" style={{ display: 'none' }}>
@@ -551,16 +818,54 @@ export default function AdminTablesPage() {
                   <h3 className="font-semibold">Danh sách đơn hàng:</h3>
                 </div>
                 <div className="space-y-4 max-h-96 overflow-y-auto border rounded-md p-4" style={{ maxHeight: 'auto' }}>
-                  {tableOrders.map((order) => (
+                  {tableOrders.map((order) => {
+                    const currentStatus = orderStatuses[order.id] || order.status
+                    return (
                     <div key={order.id} className="border-b pb-4 last:border-0 space-y-3">
                       {/* Order Header */}
                       <div className="flex justify-between items-start">
                         <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
                             <p className="font-bold text-base">Đơn #{order.id.slice(-8)}</p>
-                            <Badge className={order.status === 'PENDING' ? 'bg-yellow-500' : order.status === 'PROCESSING' ? 'bg-blue-500' : 'bg-green-500'}>
-                              {order.status === 'PENDING' ? 'Chờ xử lý' : order.status === 'PROCESSING' ? 'Đang xử lý' : 'Hoàn thành'}
+                            <Badge className={
+                              currentStatus === 'PENDING' ? 'bg-yellow-500' : 
+                              currentStatus === 'PROCESSING' ? 'bg-blue-500' : 
+                              currentStatus === 'COMPLETED' ? 'bg-green-500' : 
+                              'bg-red-500'
+                            }>
+                              {currentStatus === 'PENDING' ? 'Chờ xử lý' : 
+                               currentStatus === 'PROCESSING' ? 'Đang xử lý' : 
+                               currentStatus === 'COMPLETED' ? 'Hoàn thành' : 
+                               'Đã hủy'}
                             </Badge>
+                            {currentStatus !== order.status && (
+                              <Badge variant="outline" className="text-xs">
+                                Trước: {order.status === 'PENDING' ? 'Chờ xử lý' : 
+                                        order.status === 'PROCESSING' ? 'Đang xử lý' : 
+                                        order.status === 'COMPLETED' ? 'Hoàn thành' : 
+                                        'Đã hủy'}
+                              </Badge>
+                            )}
+                          </div>
+                          {/* Status Selector */}
+                          <div className="mt-2 flex items-center gap-2">
+                            <Label className="text-xs">Trạng thái:</Label>
+                            <Select 
+                              value={orderStatuses[order.id] || defaultOrderStatus} 
+                              onValueChange={(value: OrderStatus) => {
+                                setOrderStatuses(prev => ({ ...prev, [order.id]: value }))
+                              }}
+                            >
+                              <SelectTrigger className="h-8 text-xs w-32">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="PENDING">Chờ xử lý</SelectItem>
+                                <SelectItem value="PROCESSING">Đang xử lý</SelectItem>
+                                <SelectItem value="COMPLETED">Hoàn thành</SelectItem>
+                                <SelectItem value="CANCELLED">Đã hủy</SelectItem>
+                              </SelectContent>
+                            </Select>
                           </div>
                           
                           {/* Customer Info */}
@@ -569,8 +874,10 @@ export default function AdminTablesPage() {
                             {order.user?.email && <p><span className="font-medium">Email:</span> {order.user.email}</p>}
                             <p><span className="font-medium">Bàn số:</span> {order.tableNumber ? `Bàn ${order.tableNumber}` : 'N/A'}</p>
                             <p><span className="font-medium">Đặt món lúc:</span> {new Date(order.createdAt).toLocaleString('vi-VN')}</p>
-                            {order.updatedAt && order.status === 'COMPLETED' && (
-                              <p><span className="font-medium">Thanh toán lúc:</span> {new Date(order.updatedAt).toLocaleString('vi-VN')}</p>
+                            {order.updatedAt && (currentStatus === 'COMPLETED' || currentStatus === 'CANCELLED') && (
+                              <p><span className="font-medium">
+                                {currentStatus === 'COMPLETED' ? 'Thanh toán lúc:' : 'Hủy lúc:'}
+                              </span> {new Date(order.updatedAt).toLocaleString('vi-VN')}</p>
                             )}
                           </div>
                         </div>
@@ -623,7 +930,8 @@ export default function AdminTablesPage() {
                         </div>
                       )}
                     </div>
-                  ))}
+                    )
+                  })}
                 </div>
               </div>
 
@@ -642,6 +950,38 @@ export default function AdminTablesPage() {
                     </Select>
                   </div>
                   <div className="space-y-2">
+                    <Label>Trạng thái mặc định</Label>
+                    <Select 
+                      value={defaultOrderStatus} 
+                      onValueChange={(value: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'CANCELLED') => {
+                        setDefaultOrderStatus(value)
+                        // Áp dụng cho tất cả orders chưa có status riêng
+                        const newStatuses: Record<string, OrderStatus> = {}
+                        tableOrders.forEach(order => {
+                          if (!orderStatuses[order.id]) {
+                            newStatuses[order.id] = value
+                          }
+                        })
+                        setOrderStatuses(prev => ({ ...prev, ...newStatuses }))
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="PENDING">Chờ xử lý</SelectItem>
+                        <SelectItem value="PROCESSING">Đang xử lý</SelectItem>
+                        <SelectItem value="COMPLETED">Hoàn thành</SelectItem>
+                        <SelectItem value="CANCELLED">Đã hủy</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      Áp dụng cho tất cả đơn hàng chưa có trạng thái riêng
+                    </p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
                     <Label>VAT (%)</Label>
                     <Input
                       type="number"
@@ -651,15 +991,15 @@ export default function AdminTablesPage() {
                       max="100"
                     />
                   </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>Giảm giá (đ)</Label>
-                  <Input
-                    type="number"
-                    value={discount}
-                    onChange={(e) => setDiscount(Number(e.target.value))}
-                    min="0"
-                  />
+                  <div className="space-y-2">
+                    <Label>Giảm giá (đ)</Label>
+                    <Input
+                      type="number"
+                      value={discount}
+                      onChange={(e) => setDiscount(Number(e.target.value))}
+                      min="0"
+                    />
+                  </div>
                 </div>
 
                 <div className="space-y-2 border-t pt-4">
@@ -687,7 +1027,8 @@ export default function AdminTablesPage() {
                 </div>
               </div>
             </div>
-          )}
+            );
+          })()}
 
           <DialogFooter data-print="hide">
             <div className="flex gap-2 w-full justify-between">
@@ -716,7 +1057,83 @@ export default function AdminTablesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Edit Dialog */}
+      <Dialog open={editDialog.open} onOpenChange={(open) => setEditDialog({ open, table: null })}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Chỉnh sửa bàn</DialogTitle>
+            <DialogDescription>
+              Cập nhật thông tin bàn
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="editTableNumber">Số bàn</Label>
+              <Input
+                id="editTableNumber"
+                type="number"
+                placeholder="Nhập số bàn"
+                value={editTableNumber}
+                onChange={(e) => setEditTableNumber(e.target.value)}
+                min="1"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setEditDialog({ open: false, table: null })
+                setEditTableNumber("")
+              }}
+            >
+              Hủy
+            </Button>
+            <Button
+              onClick={() => {
+                if (editDialog.table) {
+                  updateTable(editDialog.table.id, Number.parseInt(editTableNumber))
+                }
+              }}
+              disabled={!editTableNumber}
+            >
+              Lưu
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Dialog */}
+      <AlertDialog
+        open={deleteDialog.open}
+        onOpenChange={(open) => setDeleteDialog({ open, table: null })}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Bạn có chắc chắn?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Hành động này không thể hoàn tác. Bàn sẽ bị xóa vĩnh viễn.
+              {deleteDialog.table && deleteDialog.table.qrCode && " Mã QR của bàn này cũng sẽ bị xóa."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Hủy</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 text-red-50 hover:bg-red-700"
+              onClick={() => {
+                if (deleteDialog.table) {
+                  deleteTable(deleteDialog.table.id)
+                }
+              }}
+            >
+              Xóa
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
+    </AdminGuard>
   )
 }
 

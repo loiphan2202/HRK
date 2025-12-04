@@ -43,7 +43,7 @@ interface Category {
   name: string
 }
 
-export function EditProduct({ open, onOpenChange, product, onSuccess }: EditProductProps) {
+export function EditProduct({ open, onOpenChange, product, onSuccess }: Readonly<EditProductProps>) {
   const [loading, setLoading] = useState(false)
   const [categories, setCategories] = useState<Category[]>([])
   const [loadingCategories, setLoadingCategories] = useState(false)
@@ -97,10 +97,8 @@ export function EditProduct({ open, onOpenChange, product, onSuccess }: EditProd
     }
 
     try {
-      const res = await fetch(`/api/products/${product.id}`, {
-        method: "PUT",
-        body: formData,
-      });
+      const { apiPut } = await import('@/lib/api-client')
+      const res = await apiPut(`/api/products/${product.id}`, formData);
 
       const result = await res.json();
       

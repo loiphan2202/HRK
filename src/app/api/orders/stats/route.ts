@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { OrderStatsService } from '@/server/services/order-stats-service'
+import { OrderStatsServiceTypeORM } from '@/server/services/order-stats-service-typeorm'
 import { ErrorHandler } from '@/server/errors/error-handler'
+import { requireAdmin } from '@/server/middleware/auth'
 
-const statsService = new OrderStatsService()
+const statsService = new OrderStatsServiceTypeORM()
 
 export async function GET(request: NextRequest) {
+  // Require admin authentication
+  const authError = await requireAdmin(request);
+  if (authError) {
+    return authError;
+  }
   try {
     const { searchParams } = new URL(request.url)
     const period = searchParams.get('period') as 'week' | 'month' | 'year' | null

@@ -6,12 +6,13 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { useAuth } from "@/contexts/auth-context"
+import { useAuthStore } from "@/store/auth-store"
 import { Loader2 } from "lucide-react"
 import Image from "next/image"
 
 export default function SettingsPage() {
-  const { user, isLoading } = useAuth()
+  const user = useAuthStore((state) => state.user)
+  const isLoading = useAuthStore((state) => state.isLoading)
   const router = useRouter()
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
@@ -91,15 +92,8 @@ export default function SettingsPage() {
     setMessage(null)
 
     try {
-      const token = localStorage.getItem("token")
-      const response = await fetch(`/api/users/${user.id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ name, email }),
-      })
+      const { apiPut } = await import('@/lib/api-client')
+      const response = await apiPut(`/api/users/${user.id}`, { name, email })
 
       const data = await response.json()
 
@@ -112,7 +106,7 @@ export default function SettingsPage() {
       localStorage.setItem("user", JSON.stringify(updatedUser))
       
       setMessage({ type: "success", text: "Profile updated successfully!" })
-      window.location.reload()
+      globalThis.location.reload()
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Failed to update profile"
       setMessage({ type: "error", text: message })
@@ -122,13 +116,13 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="flex flex-col space-y-8 w-full max-w-2xl mx-auto">
-          <div>
-            <h1 className="text-4xl font-bold tracking-tight">Cài đặt</h1>
-            <p className="text-muted-foreground mt-2">
-              Quản lý cài đặt tài khoản và tùy chọn của bạn
-            </p>
-          </div>
+    <div className="flex flex-col space-y-6 sm:space-y-8 w-full max-w-2xl mx-auto px-4 sm:px-6 lg:px-0">
+      <div>
+        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight">Cài đặt</h1>
+        <p className="text-sm sm:text-base text-muted-foreground mt-2">
+          Quản lý cài đặt tài khoản và tùy chọn của bạn
+        </p>
+      </div>
 
       <Card>
         <CardHeader>

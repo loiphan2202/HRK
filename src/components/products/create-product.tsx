@@ -41,7 +41,7 @@ interface CreateProductProps {
   onProductCreated?: (product: Product) => void
 }
 
-export function CreateProduct({ onProductCreated }: CreateProductProps) {
+export function CreateProduct({ onProductCreated }: Readonly<CreateProductProps>) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [categories, setCategories] = useState<Category[]>([])
@@ -81,13 +81,8 @@ export function CreateProduct({ onProductCreated }: CreateProductProps) {
     })
 
     try {
-      const res = await fetch("/api/products", {
-        method: "POST",
-        body: formData,
-        headers: {
-          'Accept': 'application/json',
-        }
-      })
+      const { apiPost } = await import('@/lib/api-client')
+      const res = await apiPost("/api/products", formData)
 
       if (!res.ok) {
         const error = await res.json();
@@ -126,7 +121,7 @@ export function CreateProduct({ onProductCreated }: CreateProductProps) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>
+        <Button className="w-full sm:w-auto">
           <Plus className="mr-2 h-4 w-4" />
           Add Product
         </Button>

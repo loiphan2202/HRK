@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server';
-import { OrderService } from '../services/order-service';
+import { OrderServiceTypeORM } from '../services/order-service-typeorm';
 import { orderCreateSchema, orderUpdateSchema } from '../schemas/order-schema';
 import { ErrorHandler } from '../errors/error-handler';
+import { serializeEntity } from '../utils/typeorm-helpers';
 
 export class OrderController {
-  private readonly service: OrderService;
+  private readonly service: OrderServiceTypeORM;
 
   constructor() {
-    this.service = new OrderService();
+    this.service = new OrderServiceTypeORM();
   }
 
   async create(req: Request) {
@@ -16,7 +17,7 @@ export class OrderController {
       const validatedData = orderCreateSchema.parse(data);
       const order = await this.service.create(validatedData);
 
-      return NextResponse.json({ success: true, data: order });
+      return NextResponse.json({ success: true, data: serializeEntity(order) });
     } catch (error: unknown) {
       return ErrorHandler.handle(error);
     }
@@ -25,7 +26,7 @@ export class OrderController {
   async getById(req: Request, id: string) {
     try {
       const order = await this.service.findById(id);
-      return NextResponse.json({ success: true, data: order });
+      return NextResponse.json({ success: true, data: serializeEntity(order) });
     } catch (error: unknown) {
       return ErrorHandler.handle(error);
     }
@@ -34,7 +35,7 @@ export class OrderController {
   async getByUserId(req: Request, userId: string) {
     try {
       const orders = await this.service.findByUserId(userId);
-      return NextResponse.json({ success: true, data: orders });
+      return NextResponse.json({ success: true, data: orders.map(o => serializeEntity(o)) });
     } catch (error: unknown) {
       return ErrorHandler.handle(error);
     }
@@ -47,7 +48,7 @@ export class OrderController {
       const status = searchParams.get('status');
       
       const orders = await this.service.findAll({ tableNumber, status });
-      return NextResponse.json({ success: true, data: orders });
+      return NextResponse.json({ success: true, data: orders.map(o => serializeEntity(o)) });
     } catch (error: unknown) {
       return ErrorHandler.handle(error);
     }
@@ -59,7 +60,7 @@ export class OrderController {
       const validatedData = orderUpdateSchema.parse(data);
       const order = await this.service.update(id, validatedData);
 
-      return NextResponse.json({ success: true, data: order });
+      return NextResponse.json({ success: true, data: serializeEntity(order) });
     } catch (error: unknown) {
       return ErrorHandler.handle(error);
     }

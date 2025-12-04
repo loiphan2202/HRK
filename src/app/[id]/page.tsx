@@ -9,8 +9,9 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { ShoppingCart, ArrowLeft, Plus, Minus } from "lucide-react"
-import { useCart } from "@/contexts/cart-context"
-import { useAuth } from "@/contexts/auth-context"
+import { useCartStore } from "@/store/cart-store"
+import { useAuthStore } from "@/store/auth-store"
+import { useToast } from "@/components/ui/use-toast"
 
 interface Product {
   id: string
@@ -39,11 +40,25 @@ async function getProduct(id: string): Promise<Product | null> {
   }
 }
 
+const getStockDisplay = (stock: number | null): string => {
+  if (stock === null) {
+    return "Không theo dõi"
+  }
+  if (stock === -1) {
+    return "Không giới hạn"
+  }
+  if (stock > 0) {
+    return `Còn ${stock} sản phẩm`
+  }
+  return "Hết hàng"
+}
+
 export default function ProductDetailPage() {
   const params = useParams()
   const router = useRouter()
-  const { addToCart } = useCart()
-  const { isAdmin } = useAuth()
+  const addToCart = useCartStore((state) => state.addToCart)
+  const isAdmin = useAuthStore((state) => state.isAdmin)
+  const { toast } = useToast()
   const [product, setProduct] = useState<Product | null>(null)
   const [loading, setLoading] = useState(true)
   const [quantity, setQuantity] = useState(1)
@@ -69,6 +84,17 @@ export default function ProductDetailPage() {
 
   const handleAddToCart = () => {
     if (!product) return
+    
+    // Check if user has selected a table or checked in
+    const hasCheckIn = localStorage.getItem('currentTable')
+    if (!hasCheckIn) {
+      toast({
+        variant: "destructive",
+        title: "Chưa chọn bàn",
+        description: "Vui lòng quét mã QR hoặc chọn bàn trước khi thêm món!",
+      })
+      return
+    }
     
     // Chỉ kiểm tra stock nếu có tracking (stock !== null && stock >= 0)
     const hasStock = product.stock === null || product.stock === -1 || product.stock > 0
@@ -104,10 +130,10 @@ export default function ProductDetailPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="animate-pulse space-y-8 w-full max-w-6xl">
+        <div className="animate-pulse space-y-6 sm:space-y-8 w-full max-w-6xl px-4 sm:px-6 lg:px-0">
           <div className="h-8 w-32 bg-muted rounded" />
-          <div className="grid gap-8 md:grid-cols-2">
-            <div className="h-96 bg-muted rounded-lg" />
+          <div className="grid gap-6 sm:gap-8 md:grid-cols-2">
+            <div className="h-64 sm:h-96 bg-muted rounded-lg" />
             <div className="space-y-4">
               <div className="h-8 bg-muted rounded w-3/4" />
               <div className="h-4 bg-muted rounded w-1/2" />
@@ -121,8 +147,8 @@ export default function ProductDetailPage() {
 
   if (!product) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
-        <h2 className="text-2xl font-bold">Không tìm thấy sản phẩm</h2>
+      <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4 px-4 sm:px-6 lg:px-0">
+        <h2 className="text-xl sm:text-2xl font-bold">Không tìm thấy sản phẩm</h2>
         <Link href="/">
           <Button>
             <ArrowLeft className="mr-2 h-4 w-4" />
@@ -134,7 +160,7 @@ export default function ProductDetailPage() {
   }
 
   return (
-    <div className="flex flex-col space-y-8 w-full">
+    <div className="flex flex-col space-y-6 sm:space-y-8 w-full px-4 sm:px-6 lg:px-0">
       <Button
         variant="ghost"
         onClick={() => router.back()}
@@ -144,8 +170,8 @@ export default function ProductDetailPage() {
         Quay lại
       </Button>
 
-      <div className="grid gap-8 md:grid-cols-2">
-        <div className="relative aspect-square w-full overflow-hidden rounded-lg border-2">
+      <div className="grid gap-6 sm:gap-8 md:grid-cols-2">
+        <div className="relative aspect-square w-full overflow-hidden rounded-lg border-2 max-h-[500px]">
           {product.image ? (
             <Image
               src={product.image}
@@ -162,29 +188,27 @@ export default function ProductDetailPage() {
           )}
         </div>
 
-        <div className="flex flex-col space-y-6">
+        <div className="flex flex-col space-y-4 sm:space-y-6">
           <div>
-            <div className="flex items-center gap-3 mb-2">
-              <h1 className="text-4xl font-bold">{product.name}</h1>
-              {product.categories && product.categories.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {product.categories.map((pc) => (
-                    <span key={pc.category.id} className="px-3 py-1 text-sm font-medium bg-secondary text-secondary-foreground rounded-full">
-                      {pc.category.name}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
-            <p className="text-3xl font-bold text-primary">
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2">{product.name}</h1>
+            {product.categories && product.categories.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-3">
+                {product.categories.map((pc) => (
+                  <span key={pc.category.id} className="px-2 py-1 text-xs sm:text-sm font-medium bg-secondary text-secondary-foreground rounded-full">
+                    {pc.category.name}
+                  </span>
+                ))}
+              </div>
+            )}
+            <p className="text-2xl sm:text-3xl font-bold text-primary">
               {product.price.toLocaleString('vi-VN')}đ
             </p>
           </div>
 
           {product.description && (
             <div>
-              <h2 className="text-xl font-semibold mb-2">Mô tả</h2>
-              <p className="text-muted-foreground whitespace-pre-wrap">
+              <h2 className="text-lg sm:text-xl font-semibold mb-2">Mô tả</h2>
+              <p className="text-sm sm:text-base text-muted-foreground whitespace-pre-wrap">
                 {product.description}
               </p>
             </div>
@@ -197,13 +221,7 @@ export default function ProductDetailPage() {
                 ? "text-green-600" 
                 : "text-red-600"
             }`}>
-              {product.stock === null 
-                ? "Không theo dõi" 
-                : product.stock === -1 
-                ? "Không giới hạn" 
-                : product.stock > 0 
-                ? `Còn ${product.stock} sản phẩm` 
-                : "Hết hàng"}
+              {getStockDisplay(product.stock)}
             </span>
           </div>
 
@@ -225,7 +243,7 @@ export default function ProductDetailPage() {
                       type="number"
                       value={quantity}
                       onChange={(e) => {
-                        const value = parseInt(e.target.value) || 1
+                        const value = Number.parseInt(e.target.value) || 1
                         setQuantity(Math.max(1, Math.min(value, getMaxQuantity())))
                       }}
                       className="w-20 text-center border-0"

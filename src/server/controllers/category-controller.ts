@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server';
-import { CategoryService } from '../services/category-service';
+import { CategoryServiceTypeORM } from '../services/category-service-typeorm';
 import { categoryCreateSchema, categoryUpdateSchema } from '../schemas/category-schema';
 import { ErrorHandler } from '../errors/error-handler';
+import { serializeEntity } from '../utils/typeorm-helpers';
 
 export class CategoryController {
-  private readonly service: CategoryService;
+  private readonly service: CategoryServiceTypeORM;
 
   constructor() {
-    this.service = new CategoryService();
+    this.service = new CategoryServiceTypeORM();
   }
 
   async create(req: Request) {
@@ -16,7 +17,7 @@ export class CategoryController {
       const validatedData = categoryCreateSchema.parse(data);
       const category = await this.service.create(validatedData);
 
-      return NextResponse.json({ success: true, data: category });
+      return NextResponse.json({ success: true, data: serializeEntity(category) });
     } catch (error: unknown) {
       return ErrorHandler.handle(error);
     }
@@ -25,7 +26,7 @@ export class CategoryController {
   async getById(req: Request, id: string) {
     try {
       const category = await this.service.findById(id);
-      return NextResponse.json({ success: true, data: category });
+      return NextResponse.json({ success: true, data: serializeEntity(category) });
     } catch (error: unknown) {
       return ErrorHandler.handle(error);
     }
@@ -34,7 +35,7 @@ export class CategoryController {
   async getAll() {
     try {
       const categories = await this.service.findAll();
-      return NextResponse.json({ success: true, data: categories });
+      return NextResponse.json({ success: true, data: categories.map(c => serializeEntity(c)) });
     } catch (error: unknown) {
       return ErrorHandler.handle(error);
     }
@@ -46,7 +47,7 @@ export class CategoryController {
       const validatedData = categoryUpdateSchema.parse(data);
       const category = await this.service.update(id, validatedData);
 
-      return NextResponse.json({ success: true, data: category });
+      return NextResponse.json({ success: true, data: serializeEntity(category) });
     } catch (error: unknown) {
       return ErrorHandler.handle(error);
     }
@@ -55,7 +56,7 @@ export class CategoryController {
   async delete(req: Request, id: string) {
     try {
       const category = await this.service.delete(id);
-      return NextResponse.json({ success: true, data: category });
+      return NextResponse.json({ success: true, data: serializeEntity(category) });
     } catch (error: unknown) {
       return ErrorHandler.handle(error);
     }

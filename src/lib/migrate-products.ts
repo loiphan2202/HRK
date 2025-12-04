@@ -1,5 +1,8 @@
-import { prisma } from '@/lib/prisma';
-import { CategoryService } from '@/server/services/category-service';
+import { getDataSource } from '@/lib/typeorm';
+import { CategoryServiceTypeORM } from '@/server/services/category-service-typeorm';
+import { Product } from '@/entities/Product';
+import { ProductCategory } from '@/entities/ProductCategory';
+import { ObjectId } from 'mongodb';
 
 /**
  * Migration script to assign default category to products without categoryId
@@ -7,7 +10,10 @@ import { CategoryService } from '@/server/services/category-service';
  */
 export async function migrateProductsWithoutCategory() {
   try {
-    const categoryService = new CategoryService();
+    const categoryService = new CategoryServiceTypeORM();
+    const dataSource = await getDataSource();
+    const productRepo = dataSource.getRepository(Product);
+    const productCategoryRepo = dataSource.getRepository(ProductCategory);
     
     // Get or create a default category
     let defaultCategory = await categoryService.findByName('Main Course');
@@ -21,17 +27,18 @@ export async function migrateProductsWithoutCategory() {
       defaultCategory = categories[0];
     }
 
-    // Find all products without categoryId
-    const productsWithoutCategory = await prisma.product.findMany({
-      where: {
-        categories: {
-          none: {},
-        },
-      },
-      include: {
-        categories: true,
-      },
-    });
+    // Find all products
+    const allProducts = await productRepo.find();
+    
+    // Find products without categories
+    const allProductCategories = await productCategoryRepo.find();
+    const productsWithCategories = new Set(
+      allProductCategories.map(pc => pc.productId.toString())
+    );
+    
+    const productsWithoutCategory = allProducts.filter(
+      p => !productsWithCategories.has(p.id.toString())
+    );
 
     if (productsWithoutCategory.length === 0) {
       console.log('No products without category found.');
@@ -41,13 +48,20 @@ export async function migrateProductsWithoutCategory() {
     console.log(`Found ${productsWithoutCategory.length} products without category. Updating...`);
 
     // Update all products to use default category
+    const defaultCategoryId = defaultCategory.id instanceof ObjectId 
+      ? defaultCategory.id 
+      : new ObjectId(String(defaultCategory.id));
+    
     for (const product of productsWithoutCategory) {
-      await prisma.productCategory.create({
-        data: {
-          productId: product.id,
-          categoryId: defaultCategory.id,
-        },
-      });
+      const productId = product.id instanceof ObjectId 
+        ? product.id 
+        : new ObjectId(String(product.id));
+      await productCategoryRepo.save(
+        productCategoryRepo.create({
+          productId,
+          categoryId: defaultCategoryId,
+        })
+      );
     }
 
     console.log(`Successfully updated ${productsWithoutCategory.length} products with category: ${defaultCategory.name}`);

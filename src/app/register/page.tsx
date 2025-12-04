@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { useAuth } from "@/contexts/auth-context"
+import { useAuthStore } from "@/store/auth-store"
 import { Loader2 } from "lucide-react"
 
 export default function RegisterPage() {
@@ -16,7 +16,7 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const { register } = useAuth()
+  const register = useAuthStore((state) => state.register)
   const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -43,16 +43,16 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="flex items-center justify-center min-h-[calc(100vh-200px)] w-full">
+    <div className="flex items-center justify-center min-h-[calc(100vh-200px)] w-full px-4 py-8">
       <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle className="text-2xl">Đăng ký</CardTitle>
-          <CardDescription>
+        <CardHeader className="space-y-1 px-4 sm:px-6 pt-6 sm:pt-8">
+          <CardTitle className="text-2xl sm:text-3xl">Đăng ký</CardTitle>
+          <CardDescription className="text-sm sm:text-base">
             Tạo tài khoản mới để bắt đầu
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-4 px-4 sm:px-6">
             {error && (
               <div className="p-3 text-sm text-red-600 bg-red-50 dark:bg-red-950 dark:text-red-400 rounded-md">
                 {error}
@@ -98,7 +98,7 @@ export default function RegisterPage() {
               </p>
             </div>
           </CardContent>
-          <CardFooter className="flex flex-col space-y-4">
+          <CardFooter className="flex flex-col space-y-4 mt-6 px-4 sm:px-6 pb-6 sm:pb-8">
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? (
                 <>

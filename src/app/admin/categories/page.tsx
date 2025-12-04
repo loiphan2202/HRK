@@ -1,8 +1,8 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useAuth } from "@/contexts/auth-context"
-import { useRouter } from "next/navigation"
+import { useToast } from "@/components/ui/use-toast"
+import { AdminGuard } from "@/components/auth/admin-guard"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -51,8 +51,7 @@ interface Category {
 }
 
 export default function AdminCategoriesPage() {
-  const { isAdmin, isLoading } = useAuth()
-  const router = useRouter()
+  const { toast } = useToast()
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -66,11 +65,6 @@ export default function AdminCategoriesPage() {
   })
   const [categoryName, setCategoryName] = useState("")
 
-  useEffect(() => {
-    if (!isLoading && !isAdmin()) {
-      router.push("/")
-    }
-  }, [isLoading, isAdmin, router])
 
   useEffect(() => {
     loadCategories()
@@ -79,7 +73,8 @@ export default function AdminCategoriesPage() {
   async function loadCategories() {
     try {
       setLoading(true)
-      const res = await fetch("/api/categories")
+      const { apiGet } = await import('@/lib/api-client')
+      const res = await apiGet("/api/categories")
       const data = await res.json()
       if (data.success) {
         setCategories(data.data || [])
@@ -94,15 +89,16 @@ export default function AdminCategoriesPage() {
   async function createCategory() {
     try {
       if (!categoryName.trim()) {
-        alert("Category name is required")
+        toast({
+          variant: "destructive",
+          title: "Lỗi",
+          description: "Tên danh mục là bắt buộc.",
+        })
         return
       }
 
-      const res = await fetch("/api/categories", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: categoryName.trim() }),
-      })
+      const { apiPost } = await import('@/lib/api-client')
+      const res = await apiPost("/api/categories", { name: categoryName.trim() })
 
       if (!res.ok) {
         const error = await res.json()
@@ -113,25 +109,34 @@ export default function AdminCategoriesPage() {
       setCategoryName("")
       setDialogOpen(false)
       await loadCategories()
+      toast({
+        title: "Thành công",
+        description: "Đã tạo danh mục mới.",
+      })
     } catch (error: unknown) {
       console.error("Failed to create category:", error)
-      const message = error instanceof Error ? error.message : "Failed to create category"
-      alert(message)
+      const message = error instanceof Error ? error.message : "Không thể tạo danh mục"
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: message,
+      })
     }
   }
 
   async function updateCategory(id: string, name: string) {
     try {
       if (!name.trim()) {
-        alert("Category name is required")
+        toast({
+          variant: "destructive",
+          title: "Lỗi",
+          description: "Tên danh mục là bắt buộc.",
+        })
         return
       }
 
-      const res = await fetch(`/api/categories/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim() }),
-      })
+      const { apiPut } = await import('@/lib/api-client')
+      const res = await apiPut(`/api/categories/${id}`, { name: name.trim() })
 
       if (!res.ok) {
         const error = await res.json()
@@ -141,18 +146,25 @@ export default function AdminCategoriesPage() {
 
       setEditDialog({ open: false, category: null })
       await loadCategories()
+      toast({
+        title: "Thành công",
+        description: "Đã cập nhật danh mục.",
+      })
     } catch (error: unknown) {
       console.error("Failed to update category:", error)
-      const message = error instanceof Error ? error.message : "Failed to update category"
-      alert(message)
+      const message = error instanceof Error ? error.message : "Không thể cập nhật danh mục"
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: message,
+      })
     }
   }
 
   async function deleteCategory(id: string) {
     try {
-      const res = await fetch(`/api/categories/${id}`, {
-        method: "DELETE",
-      })
+      const { apiDelete } = await import('@/lib/api-client')
+      const res = await apiDelete(`/api/categories/${id}`)
 
       if (!res.ok) {
         const error = await res.json()
@@ -162,50 +174,51 @@ export default function AdminCategoriesPage() {
 
       setDeleteDialog({ open: false, categoryId: null })
       await loadCategories()
+      toast({
+        title: "Thành công",
+        description: "Đã xóa danh mục.",
+      })
     } catch (error: unknown) {
       console.error("Failed to delete category:", error)
-      const message = error instanceof Error ? error.message : "Failed to delete category"
-      alert(message)
+      const message = error instanceof Error ? error.message : "Không thể xóa danh mục"
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: message,
+      })
     }
   }
 
-  if (isLoading || !isAdmin()) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <p className="text-muted-foreground">Loading...</p>
-      </div>
-    )
-  }
-
   return (
-    <div className="flex flex-col space-y-8 w-full">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-4xl font-bold tracking-tight">Categories Management</h1>
-          <p className="text-muted-foreground mt-2">
-            Manage product categories
-          </p>
-        </div>
+    <AdminGuard>
+      <div className="flex flex-col space-y-6 sm:space-y-8 w-full px-4 sm:px-6 lg:px-0">
+      <div>
+        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight">Quản lý danh mục</h1>
+        <p className="text-sm sm:text-base text-muted-foreground mt-2">
+          Quản lý danh mục sản phẩm của nhà hàng
+        </p>
+      </div>
+      <div className="flex justify-end">
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
-            <Button>
+            <Button className="w-full sm:w-auto">
               <Plus className="mr-2 h-4 w-4" />
-              Add Category
+              Thêm danh mục
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Add New Category</DialogTitle>
+              <DialogTitle>Thêm danh mục mới</DialogTitle>
               <DialogDescription>
-                Create a new category for products
+                Tạo danh mục mới cho sản phẩm
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="categoryName">Category Name</Label>
+                <Label htmlFor="categoryName">Tên danh mục</Label>
                 <Input
                   id="categoryName"
-                  placeholder="Enter category name"
+                  placeholder="Nhập tên danh mục"
                   value={categoryName}
                   onChange={(e) => setCategoryName(e.target.value)}
                   onKeyDown={(e) => {
@@ -219,10 +232,10 @@ export default function AdminCategoriesPage() {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setDialogOpen(false)}>
-                Cancel
+                Hủy
               </Button>
               <Button onClick={createCategory} disabled={!categoryName.trim()}>
-                Create
+                Tạo
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -237,55 +250,59 @@ export default function AdminCategoriesPage() {
         </Card>
       ) : (
         <Card>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {categories.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={2} className="text-center text-muted-foreground">
-                    No categories found. Create your first category!
-                  </TableCell>
-                </TableRow>
-              ) : (
-                categories.map((category) => (
-                  <TableRow key={category.id}>
-                    <TableCell className="font-medium">{category.name}</TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreHorizontal className="h-4 w-4" />
-                            <span className="sr-only">Open menu</span>
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuItem
-                            onClick={() => setEditDialog({ open: true, category })}
-                          >
-                            <Edit2 className="mr-2 h-4 w-4" />
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            className="text-red-600"
-                            onClick={() => setDeleteDialog({ open: true, categoryId: category.id })}
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
+          <div className="overflow-x-auto -mx-4 sm:mx-0">
+            <div className="inline-block min-w-full align-middle px-4 sm:px-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Tên danh mục</TableHead>
+                    <TableHead>Hành động</TableHead>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                </TableHeader>
+                <TableBody>
+                  {categories.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={2} className="text-center text-muted-foreground">
+                        Không có danh mục nào. Tạo danh mục đầu tiên!
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    categories.map((category) => (
+                      <TableRow key={category.id}>
+                        <TableCell className="font-medium">{category.name}</TableCell>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon">
+                                <MoreHorizontal className="h-4 w-4" />
+                                <span className="sr-only">Mở menu</span>
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuLabel>Hành động</DropdownMenuLabel>
+                              <DropdownMenuItem
+                                onClick={() => setEditDialog({ open: true, category })}
+                              >
+                                <Edit2 className="mr-2 h-4 w-4" />
+                                Chỉnh sửa
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                className="text-red-600"
+                                onClick={() => setDeleteDialog({ open: true, categoryId: category.id })}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Xóa
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
         </Card>
       )}
 
@@ -293,14 +310,14 @@ export default function AdminCategoriesPage() {
       <Dialog open={editDialog.open} onOpenChange={(open) => setEditDialog({ open, category: null })}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit Category</DialogTitle>
+            <DialogTitle>Chỉnh sửa danh mục</DialogTitle>
             <DialogDescription>
-              Update the category name
+              Cập nhật tên danh mục
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="editCategoryName">Category Name</Label>
+              <Label htmlFor="editCategoryName">Tên danh mục</Label>
               <Input
                 id="editCategoryName"
                 defaultValue={editDialog.category?.name || ""}
@@ -326,7 +343,7 @@ export default function AdminCategoriesPage() {
               variant="outline"
               onClick={() => setEditDialog({ open: false, category: null })}
             >
-              Cancel
+              Hủy
             </Button>
             <Button
               onClick={() => {
@@ -336,7 +353,7 @@ export default function AdminCategoriesPage() {
               }}
               disabled={!editDialog.category?.name.trim()}
             >
-              Save
+              Lưu
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -349,14 +366,14 @@ export default function AdminCategoriesPage() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogTitle>Bạn có chắc chắn?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the category.
-              Products using this category will need to be updated.
+              Hành động này không thể hoàn tác. Danh mục sẽ bị xóa vĩnh viễn.
+              Các sản phẩm sử dụng danh mục này cần được cập nhật.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>Hủy</AlertDialogCancel>
             <AlertDialogAction
               className="bg-red-600 text-red-50 hover:bg-red-700"
               onClick={() => {
@@ -365,12 +382,13 @@ export default function AdminCategoriesPage() {
                 }
               }}
             >
-              Delete
+              Xóa
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </div>
+    </AdminGuard>
   )
 }
 
