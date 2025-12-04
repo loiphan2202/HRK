@@ -8,6 +8,7 @@ import { AuthInitializer } from "@/components/auth-initializer";
 import { ensureAdminExists } from "@/lib/init-admin";
 import { Toaster } from "@/components/ui/toaster";
 import { ClearTableListener } from "@/components/clear-table-listener";
+import { OrganizationJsonLd } from "@/components/seo/json-ld";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -20,8 +21,58 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "HRK Dashboard",
-  description: "HRK E-commerce Dashboard",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'),
+  title: {
+    default: "HRK - Nhà hàng & Đặt món trực tuyến",
+    template: "%s | HRK",
+  },
+  description: "HRK - Hệ thống đặt món trực tuyến hiện đại. Xem menu, đặt món, thanh toán nhanh chóng. Quản lý bàn ăn và đơn hàng dễ dàng.",
+  keywords: ["nhà hàng", "đặt món", "food ordering", "restaurant", "menu", "đặt bàn", "HRK"],
+  authors: [{ name: "HRK" }],
+  creator: "HRK",
+  publisher: "HRK",
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
+  },
+  openGraph: {
+    type: "website",
+    locale: "vi_VN",
+    url: process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
+    siteName: "HRK",
+    title: "HRK - Nhà hàng & Đặt món trực tuyến",
+    description: "HRK - Hệ thống đặt món trực tuyến hiện đại. Xem menu, đặt món, thanh toán nhanh chóng.",
+    images: [
+      {
+        url: "/og-image.jpg",
+        width: 1200,
+        height: 630,
+        alt: "HRK - Nhà hàng & Đặt món trực tuyến",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "HRK - Nhà hàng & Đặt món trực tuyến",
+    description: "HRK - Hệ thống đặt món trực tuyến hiện đại. Xem menu, đặt món, thanh toán nhanh chóng.",
+    images: ["/og-image.jpg"],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
+  verification: {
+    // Thêm Google Search Console verification code nếu có
+    // google: "your-google-verification-code",
+  },
 };
 
 export default async function RootLayout({
@@ -34,9 +85,12 @@ export default async function RootLayout({
     console.error('Failed to initialize admin:', error);
   });
 
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="vi" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-background font-sans antialiased`}>
+        <OrganizationJsonLd baseUrl={baseUrl} />
         <ClearTableListener />
         <ThemeProvider
           attribute="class"
