@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button'
 
 // Disable static generation for 404 page
 export const dynamic = 'force-dynamic'
+export const revalidate = 0
 
 export default function NotFound() {
   return (

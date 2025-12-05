@@ -93,7 +93,10 @@ export default async function RootLayout({
   return (
     <html lang="vi" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-background font-sans antialiased`}>
-        <OrganizationJsonLd baseUrl={baseUrl} />
+        {/* Only render OrganizationJsonLd if not in build phase to avoid static generation issues */}
+        {process.env.NEXT_PHASE !== 'phase-production-build' && (
+          <OrganizationJsonLd baseUrl={baseUrl} />
+        )}
         <ClearTableListener />
         <ThemeProvider
           attribute="class"
