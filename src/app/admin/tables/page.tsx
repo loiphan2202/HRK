@@ -388,7 +388,7 @@ export default function AdminTablesPage() {
     const printWindow = window.open('', '_blank')
     if (printWindow) {
       printWindow.document.open()
-      // eslint-disable-next-line deprecation/deprecation
+      // Using document.write for invoice printing (deprecated but necessary for this use case)
       printWindow.document.write(invoiceHTML)
       printWindow.document.close()
       printWindow.onload = () => {
@@ -539,7 +539,7 @@ export default function AdminTablesPage() {
     const printWindow = window.open('', '_blank')
     if (printWindow) {
       printWindow.document.open()
-      // eslint-disable-next-line deprecation/deprecation
+      // Using document.write for invoice printing (deprecated but necessary for this use case)
       printWindow.document.write(invoiceHTML)
       printWindow.document.close()
       printWindow.onload = () => {
