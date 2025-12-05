@@ -138,7 +138,18 @@ export default function AdminTablesPage() {
       const { apiPost } = await import('@/lib/api-client')
       const res = await apiPost("/api/tables", { number: Number.parseInt(tableNumber) })
 
-      if (!res.ok) throw new Error("Failed to create table")
+      if (!res.ok) {
+        // Parse error message from API response
+        const errorData = await res.json().catch(() => ({}))
+        const errorMessage = errorData?.error?.message || "Không thể tạo bàn. Số bàn có thể đã tồn tại."
+        
+        toast({
+          variant: "destructive",
+          title: "Lỗi",
+          description: errorMessage,
+        })
+        return
+      }
 
       setTableNumber("")
       setDialogOpen(false)
@@ -152,7 +163,7 @@ export default function AdminTablesPage() {
       toast({
         variant: "destructive",
         title: "Lỗi",
-        description: "Không thể tạo bàn. Số bàn có thể đã tồn tại.",
+        description: "Không thể tạo bàn. Vui lòng thử lại.",
       })
     }
   }
@@ -162,7 +173,18 @@ export default function AdminTablesPage() {
       const { apiPut } = await import('@/lib/api-client')
       const res = await apiPut(`/api/tables/${id}`, { number })
 
-      if (!res.ok) throw new Error("Failed to update table")
+      if (!res.ok) {
+        // Parse error message from API response
+        const errorData = await res.json().catch(() => ({}))
+        const errorMessage = errorData?.error?.message || "Không thể cập nhật bàn. Số bàn có thể đã tồn tại."
+        
+        toast({
+          variant: "destructive",
+          title: "Lỗi",
+          description: errorMessage,
+        })
+        return
+      }
 
       setEditDialog({ open: false, table: null })
       setEditTableNumber("")
@@ -176,7 +198,7 @@ export default function AdminTablesPage() {
       toast({
         variant: "destructive",
         title: "Lỗi",
-        description: "Không thể cập nhật bàn. Số bàn có thể đã tồn tại.",
+        description: "Không thể cập nhật bàn. Vui lòng thử lại.",
       })
     }
   }
@@ -186,7 +208,18 @@ export default function AdminTablesPage() {
       const { apiDelete } = await import('@/lib/api-client')
       const res = await apiDelete(`/api/tables/${id}`)
 
-      if (!res.ok) throw new Error("Failed to delete table")
+      if (!res.ok) {
+        // Parse error message from API response
+        const errorData = await res.json().catch(() => ({}))
+        const errorMessage = errorData?.error?.message || "Không thể xóa bàn."
+        
+        toast({
+          variant: "destructive",
+          title: "Lỗi",
+          description: errorMessage,
+        })
+        return
+      }
 
       setDeleteDialog({ open: false, table: null })
       await loadTables()
@@ -199,7 +232,7 @@ export default function AdminTablesPage() {
       toast({
         variant: "destructive",
         title: "Lỗi",
-        description: "Không thể xóa bàn.",
+        description: "Không thể xóa bàn. Vui lòng thử lại.",
       })
     }
   }
@@ -210,7 +243,18 @@ export default function AdminTablesPage() {
       const { apiPost } = await import('@/lib/api-client')
       const res = await apiPost(`/api/tables/${tableId}/qr`, {})
 
-      if (!res.ok) throw new Error("Failed to generate QR code")
+      if (!res.ok) {
+        // Parse error message from API response
+        const errorData = await res.json().catch(() => ({}))
+        const errorMessage = errorData?.error?.message || "Không thể tạo mã QR."
+        
+        toast({
+          variant: "destructive",
+          title: "Lỗi",
+          description: errorMessage,
+        })
+        return
+      }
 
       await res.json()
       await loadTables()

@@ -130,7 +130,18 @@ export default function AdminOrdersPage() {
         })
       })
 
-      if (!res.ok) throw new Error("Failed to update order")
+      if (!res.ok) {
+        // Parse error message from API response
+        const errorData = await res.json().catch(() => ({}))
+        const errorMessage = errorData?.error?.message || "Không thể cập nhật trạng thái đơn hàng."
+        
+        toast({
+          variant: "destructive",
+          title: "Lỗi",
+          description: errorMessage,
+        })
+        return
+      }
 
       await loadOrders()
       await loadStats()
@@ -154,7 +165,7 @@ export default function AdminOrdersPage() {
       toast({
         variant: "destructive",
         title: "Lỗi",
-        description: "Không thể cập nhật trạng thái đơn hàng.",
+        description: "Không thể cập nhật trạng thái đơn hàng. Vui lòng thử lại.",
       })
     }
   }
