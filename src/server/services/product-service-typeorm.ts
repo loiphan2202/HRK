@@ -5,6 +5,7 @@ import { NotFoundError, BadRequestError } from '../errors/base-error';
 import { getDataSource } from '@/lib/typeorm';
 import { OrderProduct } from '@/entities/OrderProduct';
 import { ObjectId } from 'mongodb';
+import { FindOptionsWhere } from 'typeorm';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -16,15 +17,15 @@ export class ProductServiceTypeORM {
   }
 
   async findById(id: string): Promise<Product> {
-    const product = await this.repository.findById(id);
+    const product = await this.repository.findByIdWithCategories(id);
     if (!product) {
       throw new NotFoundError('Product not found');
     }
-    return product as any;
+    return product as unknown as Product;
   }
 
   async findAll(): Promise<Product[]> {
-    return await this.repository.findAll();
+    return await this.repository.findAllWithCategories() as unknown as Product[];
   }
 
   async create(data: ProductCreate): Promise<Product> {
@@ -54,14 +55,15 @@ export class ProductServiceTypeORM {
   }
 
   async delete(id: string): Promise<Product> {
-    const product = await this.findById(id) as any;
+    const product = await this.findById(id);
     
     const dataSource = await getDataSource();
     const orderProductRepo = dataSource.getRepository(OrderProduct);
     const objectId = new ObjectId(id);
 
     // Delete related order products
-    await orderProductRepo.delete({ productId: objectId } as any);
+    const orderProductWhere: { productId: ObjectId } = { productId: objectId };
+    await orderProductRepo.delete(orderProductWhere as FindOptionsWhere<OrderProduct>);
     
     // Delete image file if exists
     if (product.image) {
@@ -81,9 +83,9 @@ export class ProductServiceTypeORM {
   }
 
   async updateStock(id: string, quantity: number): Promise<Product> {
-    const product = await this.findById(id) as any;
+    const product = await this.findById(id);
     // Chỉ kiểm tra stock nếu product có stock tracking (stock !== null && stock >= 0)
-    if (product.stock !== null && product.stock >= 0 && product.stock < quantity) {
+    if (product.stock !== null && product.stock !== undefined && product.stock >= 0 && product.stock < quantity) {
       throw new BadRequestError('Insufficient stock');
     }
     // Nếu stock = -1 (unlimited) hoặc null, cho phép update

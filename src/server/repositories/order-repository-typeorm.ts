@@ -1,4 +1,4 @@
-import { Order } from '@/entities/Order';
+import { Order, OrderStatus } from '@/entities/Order';
 import { OrderProduct } from '@/entities/OrderProduct';
 import { Product } from '@/entities/Product';
 import { User } from '@/entities/User';
@@ -6,15 +6,51 @@ import { BaseRepositoryTypeORM } from './base-repository-typeorm';
 import { OrderCreate, OrderUpdate } from '../schemas/order-schema';
 import { ObjectId } from 'mongodb';
 import { getDataSource } from '@/lib/typeorm';
+import { FindOptionsWhere } from 'typeorm';
 
 type OrderCreateInput = OrderCreate & { total?: number; status?: string };
+
+interface OrderProductWithProduct {
+  id: ObjectId;
+  orderId: ObjectId;
+  productId: ObjectId;
+  quantity: number;
+  createdAt?: Date;
+  updatedAt?: Date;
+  product: {
+    id: string;
+    name: string;
+    description: string | null;
+    price: number;
+    image: string | null;
+  };
+}
+
+interface OrderWithRelations {
+  id: ObjectId;
+  userId?: ObjectId;
+  tableId?: ObjectId;
+  tableNumber?: number;
+  total: number;
+  status: OrderStatus;
+  createdAt?: Date;
+  updatedAt?: Date;
+  user?: {
+    id: string;
+    email: string;
+    name?: string;
+    image?: string;
+  } | null;
+  products?: OrderProductWithProduct[];
+  orderProducts?: OrderProductWithProduct[];
+}
 
 export class OrderRepositoryTypeORM extends BaseRepositoryTypeORM<Order> {
   protected getEntity(): new () => Order {
     return Order;
   }
 
-  async findById(id: string | ObjectId): Promise<Order | null> {
+  async findByIdWithRelations(id: string | ObjectId): Promise<OrderWithRelations | null> {
     const dataSource = await getDataSource();
     const orderRepo = dataSource.getRepository(Order);
     const orderProductRepo = dataSource.getRepository(OrderProduct);
@@ -22,40 +58,47 @@ export class OrderRepositoryTypeORM extends BaseRepositoryTypeORM<Order> {
     const userRepo = dataSource.getRepository(User);
 
     const objectId = typeof id === 'string' ? new ObjectId(id) : id;
-    const order = await orderRepo.findOne({ where: { _id: objectId } as any });
+    const whereClause: FindOptionsWhere<Order> = { _id: objectId } as FindOptionsWhere<Order>;
+    const order = await orderRepo.findOne({ where: whereClause });
 
     if (!order) return null;
 
     // Load user
-    let user = null;
+    let user: User | null = null;
     if (order.userId) {
-      user = await userRepo.findOne({ where: { _id: order.userId } as any });
+      const userWhere: FindOptionsWhere<User> = { _id: order.userId } as FindOptionsWhere<User>;
+      user = await userRepo.findOne({ where: userWhere });
     }
 
     // Load products
+    const orderProductWhere: FindOptionsWhere<OrderProduct> = { orderId: objectId } as FindOptionsWhere<OrderProduct>;
     const orderProducts = await orderProductRepo.find({
-      where: { orderId: objectId } as any,
+      where: orderProductWhere,
     });
 
-    const products = [];
+    const products: OrderProductWithProduct[] = [];
     for (const op of orderProducts) {
-      const product = await productRepo.findOne({ where: { _id: op.productId } as any });
+      const productWhere: FindOptionsWhere<Product> = { _id: op.productId } as FindOptionsWhere<Product>;
+      const product = await productRepo.findOne({ where: productWhere });
       if (product) {
         products.push({
           ...op,
           product: {
             id: product.id.toString(),
             name: product.name,
-            description: product.description,
+            description: product.description ?? null,
             price: product.price,
-            image: product.image,
+            image: product.image ?? null,
           },
         });
       }
     }
 
-    return {
+    const result: OrderWithRelations = {
       ...order,
+      userId: order.userId ?? undefined,
+      tableId: order.tableId ?? undefined,
+      tableNumber: order.tableNumber ?? undefined,
       user: user ? {
         id: user.id.toString(),
         email: user.email,
@@ -63,10 +106,11 @@ export class OrderRepositoryTypeORM extends BaseRepositoryTypeORM<Order> {
         image: user.image,
       } : null,
       products,
-    } as any;
+    };
+    return result;
   }
 
-  async findAll(where?: Record<string, unknown>): Promise<Order[]> {
+  async findAllWithRelations(where?: Record<string, unknown>): Promise<OrderWithRelations[]> {
     const dataSource = await getDataSource();
     const orderRepo = dataSource.getRepository(Order);
     const orderProductRepo = dataSource.getRepository(OrderProduct);
@@ -74,7 +118,7 @@ export class OrderRepositoryTypeORM extends BaseRepositoryTypeORM<Order> {
     const userRepo = dataSource.getRepository(User);
 
     const orders = await orderRepo.find({
-      where: where as any,
+      where: where as FindOptionsWhere<Order>,
       order: { createdAt: 'DESC' },
     });
 
@@ -87,22 +131,23 @@ export class OrderRepositoryTypeORM extends BaseRepositoryTypeORM<Order> {
     );
 
     // Group by orderId
-    const productsByOrder = new Map<string, any[]>();
+    const productsByOrder = new Map<string, OrderProductWithProduct[]>();
     for (const op of relevantOrderProducts) {
       const orderId = op.orderId.toString();
       if (!productsByOrder.has(orderId)) {
         productsByOrder.set(orderId, []);
       }
-      const product = await productRepo.findOne({ where: { _id: op.productId } as any });
+      const productWhere: FindOptionsWhere<Product> = { _id: op.productId } as FindOptionsWhere<Product>;
+      const product = await productRepo.findOne({ where: productWhere });
       if (product) {
         productsByOrder.get(orderId)!.push({
           ...op,
           product: {
             id: product.id.toString(),
             name: product.name,
-            description: product.description,
+            description: product.description ?? null,
             price: product.price,
-            image: product.image,
+            image: product.image ?? null,
           },
         });
       }
@@ -129,13 +174,23 @@ export class OrderRepositoryTypeORM extends BaseRepositoryTypeORM<Order> {
         };
       };
 
-      return {
+      const userData = getUser();
+      const result: OrderWithRelations = {
         ...order,
-        user: getUser(),
+        userId: order.userId ?? undefined,
+        tableId: order.tableId ?? undefined,
+        tableNumber: order.tableNumber ?? undefined,
+        user: userData ? {
+          id: userData.id,
+          email: userData.email,
+          name: userData.name ?? undefined,
+          image: userData.image ?? undefined,
+        } : null,
         products: productsByOrder.get(order.id.toString()) || [],
         orderProducts: productsByOrder.get(order.id.toString()) || [], // Alias for frontend compatibility
       };
-    }) as any[];
+      return result;
+    });
   }
 
   // Custom create method with OrderCreateInput signature
@@ -166,8 +221,8 @@ export class OrderRepositoryTypeORM extends BaseRepositoryTypeORM<Order> {
       tableId: createObjectId(data.tableId),
       tableNumber: data.tableNumber,
       total: data.total || 0,
-      status: (data.status as any) || 'PENDING',
-    } as any);
+      status: data.status || 'PENDING',
+    } as Order);
 
     const saved = await orderRepo.save(order);
     const savedOrder = Array.isArray(saved) ? saved[0] : saved;
@@ -179,7 +234,7 @@ export class OrderRepositoryTypeORM extends BaseRepositoryTypeORM<Order> {
           orderId: savedOrder.id,
           productId: new ObjectId(product.productId),
           quantity: product.quantity,
-        } as any)
+        } as OrderProduct)
       );
       // Save each product separately to avoid array issues
       for (const orderProduct of orderProductsToSave) {
@@ -189,11 +244,11 @@ export class OrderRepositoryTypeORM extends BaseRepositoryTypeORM<Order> {
 
     // Load with relations
     const orderId = typeof savedOrder.id === 'string' ? savedOrder.id : savedOrder.id.toString();
-    return await this.findById(orderId) as Order;
+    return await this.findByIdWithRelations(orderId) as unknown as Order;
   }
 
   async findByUserId(userId: string): Promise<Order[]> {
-    return await this.findAll({ userId: new ObjectId(userId) });
+    return await this.findAllWithRelations({ userId: new ObjectId(userId) }) as unknown as Order[];
   }
 
   async update(id: string, data: OrderUpdate): Promise<Order> {

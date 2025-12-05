@@ -1,10 +1,10 @@
-import { AuthRequest } from './auth';
+import { AuthRequest, AuthUser } from './auth';
 
 /**
  * Helper to extract user info from request
  * Use this in route handlers after passing through auth middleware
  */
-export function getUserFromRequest(request: Request): { userId: string; user: any } | null {
+export function getUserFromRequest(request: Request): { userId: string; user: AuthUser } | null {
   const authRequest = request as AuthRequest;
   if (authRequest.userId && authRequest.user) {
     return {

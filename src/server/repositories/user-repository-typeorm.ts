@@ -1,6 +1,7 @@
 import { User } from '@/entities/User';
 import { BaseRepositoryTypeORM } from './base-repository-typeorm';
 import { UserCreate } from '../schemas/user-schema';
+import { FindOptionsWhere } from 'typeorm';
 
 export class UserRepositoryTypeORM extends BaseRepositoryTypeORM<User> {
   protected getEntity(): new () => User {
@@ -9,7 +10,7 @@ export class UserRepositoryTypeORM extends BaseRepositoryTypeORM<User> {
 
   async findByEmail(email: string): Promise<User | null> {
     const repository = await this.getRepository();
-    return await repository.findOne({ where: { email } as any });
+    return await repository.findOne({ where: { email } as FindOptionsWhere<User> });
   }
 
   // Custom create method - don't override base create to avoid type conflicts

@@ -59,7 +59,7 @@ export default function CartPage() {
         setSelectedTableId(checkedInTable.id)
       }
     }
-  }, [availableTables, selectedTableId])
+  }, [availableTables, selectedTableId, hasCheckIn, checkedInTableNumber])
 
   async function loadAvailableTables() {
     try {
