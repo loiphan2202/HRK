@@ -68,7 +68,6 @@ if (globalThis.window === undefined && process.env.NEXT_PHASE !== 'phase-product
     // Initialize asynchronously to avoid blocking build
     // Top-level await cannot be used here due to conditional initialization
     // Using void to explicitly ignore the promise (intentional fire-and-forget)
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     void initializeDataSource();
   }
 }
