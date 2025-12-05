@@ -79,10 +79,13 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-
+  // Ensure admin account exists on server startup (non-blocking)
+  // Skip during build to avoid MongoDB connection errors
+  if (process.env.NEXT_PHASE !== 'phase-production-build') {
     ensureAdminExists().catch((error) => {
       console.error('Failed to initialize admin:', error);
     });
+  }
 
   return (
     <html lang="vi" suppressHydrationWarning>

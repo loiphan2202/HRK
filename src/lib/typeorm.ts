@@ -50,25 +50,18 @@ const globalForTypeORM = globalThis as unknown as {
 };
 
 // Initialize DataSource asynchronously (non-blocking)
-// This must be an async function to avoid blocking module initialization
-async function initializeDataSource(): Promise<void> {
-  try {
-    await getDataSource();
-  } catch (error) {
-    // Only log if not a build-time error
-    if (process.env.NODE_ENV !== 'production' || process.env.NEXT_PHASE !== 'phase-production-build') {
-      console.error('Failed to initialize DataSource:', error);
-    }
-  }
-}
-
 // Only initialize if not in build phase
 if (globalThis.window === undefined && process.env.NEXT_PHASE !== 'phase-production-build') {
   if (!globalForTypeORM.dataSource) {
-    // Initialize asynchronously to avoid blocking build
-    // Top-level await cannot be used here due to conditional initialization
-    // Using void to explicitly ignore the promise (intentional fire-and-forget)
-    void initializeDataSource();
+    // Using top-level await for initialization
+    try {
+      await getDataSource();
+    } catch (error) {
+      // Only log if not a build-time error
+      if (process.env.NODE_ENV !== 'production' || process.env.NEXT_PHASE !== 'phase-production-build') {
+        console.error('Failed to initialize DataSource:', error);
+      }
+    }
   }
 }
 
