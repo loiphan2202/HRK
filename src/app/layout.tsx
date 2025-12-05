@@ -81,9 +81,12 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   // Ensure admin account exists on server startup (non-blocking)
-  ensureAdminExists().catch((error) => {
-    console.error('Failed to initialize admin:', error);
-  });
+  // Skip during build to avoid MongoDB connection errors
+  if (process.env.NEXT_PHASE !== 'phase-production-build') {
+    ensureAdminExists().catch((error) => {
+      console.error('Failed to initialize admin:', error);
+    });
+  }
 
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
 

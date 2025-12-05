@@ -6,6 +6,15 @@ const nextConfig: NextConfig = {
   allowedDevOrigins: [
     '169.254.230.119', // Add other IPs if needed for your local network
   ],
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'res.cloudinary.com',
+        pathname: '/**',
+      },
+    ],
+  },
 };
 
 export default nextConfig;
