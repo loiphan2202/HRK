@@ -25,6 +25,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog"
+import { apiGet } from "@/lib/api-client"
 
 interface OrderProduct {
   id: string
@@ -93,7 +94,7 @@ export default function AdminOrdersPage() {
     try {
       setLoading(true)
       const url = statusFilter === "ALL" ? "/api/orders" : `/api/orders?status=${statusFilter}`
-      const res = await fetch(url)
+      const res = await apiGet(url)
       const data = await res.json()
       setOrders(data.data || [])
     } catch (error) {
