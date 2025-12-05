@@ -11,18 +11,26 @@ import { OrderProduct } from '@/entities/OrderProduct';
 // MongoDB connection options for Heroku/Atlas
 const getMongoOptions = () => {
   const url = process.env.DATABASE_URL || '';
-  
+
   // For MongoDB Atlas (mongodb+srv://), TLS/SSL is required
   if (url.includes('mongodb+srv://')) {
     return {
       // SSL/TLS options for MongoDB Atlas
       tls: true,
       tlsAllowInvalidCertificates: false,
+      // Connection pool settings for better reliability on Heroku
+      maxPoolSize: 10,
+      minPoolSize: 2,
+      serverSelectionTimeoutMS: 30000, // 30 seconds
+      socketTimeoutMS: 45000, // 45 seconds
     };
   }
-  
-  // For local MongoDB, no SSL needed
-  return {};
+
+  // For local MongoDB, basic pool settings
+  return {
+    maxPoolSize: 10,
+    minPoolSize: 2,
+  };
 };
 
 const dataSource = new DataSource({
@@ -38,12 +46,29 @@ export async function getDataSource(): Promise<DataSource> {
   // Ensure initialization
   if (!dataSource.isInitialized) {
     try {
+      console.log('Initializing database connection...');
+      console.log('Database URL:', process.env.DATABASE_URL ? 'Set' : 'Not set');
+
+      // Add connection timeout for better error handling on Heroku
+      const connectionTimeout = setTimeout(() => {
+        console.error('Database connection timeout after 30 seconds');
+      }, 30000);
+
       await dataSource.initialize();
+      clearTimeout(connectionTimeout);
+
+      console.log('Database connection successful');
     } catch (error) {
       console.error('Failed to initialize DataSource:', error);
+      console.error('Error details:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        databaseUrl: process.env.DATABASE_URL ? 'Set (hidden for security)' : 'Not set'
+      });
+
       throw new Error(
         `Database connection failed: ${error instanceof Error ? error.message : 'Unknown error'}. ` +
-        `Please check DATABASE_URL environment variable.`
+        `Please check DATABASE_URL environment variable and ensure MongoDB is accessible.`
       );
     }
   }
