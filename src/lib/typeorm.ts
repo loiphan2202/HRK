@@ -37,7 +37,15 @@ const dataSource = new DataSource({
 export async function getDataSource(): Promise<DataSource> {
   // Ensure initialization
   if (!dataSource.isInitialized) {
-    await dataSource.initialize();
+    try {
+      await dataSource.initialize();
+    } catch (error) {
+      console.error('Failed to initialize DataSource:', error);
+      throw new Error(
+        `Database connection failed: ${error instanceof Error ? error.message : 'Unknown error'}. ` +
+        `Please check DATABASE_URL environment variable.`
+      );
+    }
   }
 
   return dataSource;
@@ -49,19 +57,21 @@ const globalForTypeORM = globalThis as unknown as {
   dataSource: DataSource | undefined;
 };
 
-// Initialize DataSource asynchronously (non-blocking)
-// Only initialize if not in build phase
+// Lazy initialization - don't block module loading
+// Initialize DataSource on first use, not at module load time
+// This prevents 503 errors if database is temporarily unavailable
+// Note: Using promise chain instead of top-level await to avoid blocking server startup
 if (globalThis.window === undefined && process.env.NEXT_PHASE !== 'phase-production-build') {
   if (!globalForTypeORM.dataSource) {
-    // Using top-level await for initialization
-    try {
-      await getDataSource();
-    } catch (error) {
+    // Initialize asynchronously without blocking (fire-and-forget)
+    // This allows the server to start even if DB connection fails initially
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    getDataSource().catch((error) => {
       // Only log if not a build-time error
       if (process.env.NODE_ENV !== 'production' || process.env.NEXT_PHASE !== 'phase-production-build') {
         console.error('Failed to initialize DataSource:', error);
       }
-    }
+    });
   }
 }
 

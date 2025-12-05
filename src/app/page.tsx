@@ -30,9 +30,25 @@ interface Category {
 const LOADING_SKELETON_KEYS = Array.from({ length: 8 }, (_, i) => `product-loading-${i}`)
 
 async function getProducts(): Promise<Product[]> {
-  const res = await fetch("/api/products")
-  const data = await res.json()
-  return data.data || []
+  try {
+    const res = await fetch("/api/products")
+    
+    // Check if response is OK and is JSON
+    if (!res.ok) {
+      throw new Error(`HTTP error! status: ${res.status}`)
+    }
+    
+    const contentType = res.headers.get("content-type")
+    if (!contentType || !contentType.includes("application/json")) {
+      throw new Error("Response is not JSON")
+    }
+    
+    const data = await res.json()
+    return data.data || []
+  } catch (error) {
+    console.error("Failed to load products:", error)
+    return [] // Return empty array on error
+  }
 }
 
 async function getCategories(): Promise<Category[]> {
