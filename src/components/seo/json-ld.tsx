@@ -1,4 +1,7 @@
+'use client'
+
 import Script from 'next/script'
+import { useEffect, useState } from 'react'
 
 interface ProductJsonLdProps {
   product: {
@@ -53,6 +56,16 @@ interface OrganizationJsonLdProps {
 }
 
 export function OrganizationJsonLd({ baseUrl = 'http://localhost:3000' }: Readonly<OrganizationJsonLdProps >) {
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  if (!mounted) {
+    return null
+  }
+
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'Restaurant',
@@ -62,11 +75,6 @@ export function OrganizationJsonLd({ baseUrl = 'http://localhost:3000' }: Readon
     logo: `${baseUrl}/og-image.jpg`,
     servesCuisine: 'Vietnamese',
     priceRange: '$$',
-  }
-
-  // Skip rendering during build to avoid static generation issues
-  if (process.env.NEXT_PHASE === 'phase-production-build') {
-    return null;
   }
 
   return (
