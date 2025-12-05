@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { Plus } from "lucide-react"
+import { useState, useEffect, useRef } from "react"
+import { Plus, Upload, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
+import Image from "next/image"
 
 interface Category {
   id: string
@@ -47,6 +48,10 @@ export function CreateProduct({ onProductCreated }: Readonly<CreateProductProps>
   const [categories, setCategories] = useState<Category[]>([])
   const [loadingCategories, setLoadingCategories] = useState(false)
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([])
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [isDragging, setIsDragging] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const dropZoneRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (open) {
@@ -95,6 +100,7 @@ export function CreateProduct({ onProductCreated }: Readonly<CreateProductProps>
       // Store form reference before closing dialog
       form.reset();
       setSelectedCategoryIds([])
+      setImagePreview(null)
       
       // Gọi callback nếu có
       if (onProductCreated && result.success) {
@@ -117,6 +123,86 @@ export function CreateProduct({ onProductCreated }: Readonly<CreateProductProps>
         : [...prev, categoryId]
     )
   }
+
+  function handleFileSelect(file: File | null) {
+    if (!file) {
+      setImagePreview(null)
+      return
+    }
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('Vui lòng chọn file ảnh')
+      return
+    }
+
+    // Validate file size (max 5MB)
+    const maxSize = 5 * 1024 * 1024
+    if (file.size > maxSize) {
+      alert('Kích thước file không được vượt quá 5MB')
+      return
+    }
+
+    // Create preview
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      setImagePreview(reader.result as string)
+    }
+    reader.readAsDataURL(file)
+
+    // Set file to input
+    if (fileInputRef.current) {
+      const dataTransfer = new DataTransfer()
+      dataTransfer.items.add(file)
+      fileInputRef.current.files = dataTransfer.files
+    }
+  }
+
+  function handleDragOver(e: React.DragEvent) {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(true)
+  }
+
+  function handleDragLeave(e: React.DragEvent) {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(false)
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(false)
+
+    const files = e.dataTransfer.files
+    if (files && files.length > 0) {
+      handleFileSelect(files[0])
+    }
+  }
+
+  function handleFileInputChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0] || null
+    handleFileSelect(file)
+  }
+
+  function clearImage() {
+    setImagePreview(null)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
+  // Reset form when dialog closes
+  useEffect(() => {
+    if (!open) {
+      setImagePreview(null)
+      setSelectedCategoryIds([])
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+    }
+  }, [open])
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -213,13 +299,72 @@ export function CreateProduct({ onProductCreated }: Readonly<CreateProductProps>
             </div>
             <div className="grid gap-2">
               <Label htmlFor="image">Image</Label>
-              <Input
-                id="image"
-                name="image"
-                type="file"
-                accept="image/*"
-                disabled={loading}
-              />
+              <div
+                ref={dropZoneRef}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                className={`
+                  relative border-2 border-dashed rounded-lg p-6 transition-colors
+                  ${isDragging 
+                    ? 'border-primary bg-primary/5' 
+                    : 'border-muted-foreground/25 hover:border-muted-foreground/50'
+                  }
+                  ${imagePreview ? 'border-solid' : ''}
+                `}
+              >
+                {imagePreview ? (
+                  <div className="relative w-full aspect-video rounded-md overflow-hidden bg-muted">
+                    <Image
+                      src={imagePreview}
+                      alt="Preview"
+                      fill
+                      className="object-cover"
+                    />
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="icon"
+                      className="absolute top-2 right-2 h-8 w-8"
+                      onClick={clearImage}
+                      disabled={loading}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center space-y-4">
+                    <Upload className={`h-12 w-12 ${isDragging ? 'text-primary' : 'text-muted-foreground'}`} />
+                    <div className="text-center space-y-2">
+                      <p className="text-sm font-medium">
+                        {isDragging ? 'Thả ảnh vào đây' : 'Kéo thả ảnh vào đây hoặc click để chọn'}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        PNG, JPG, GIF, WebP (tối đa 5MB)
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={loading}
+                    >
+                      Chọn ảnh
+                    </Button>
+                  </div>
+                )}
+                <Input
+                  ref={fileInputRef}
+                  id="image"
+                  name="image"
+                  type="file"
+                  accept="image/*"
+                  disabled={loading}
+                  onChange={handleFileInputChange}
+                  className="hidden"
+                />
+              </div>
             </div>
           </div>
           <DialogFooter>

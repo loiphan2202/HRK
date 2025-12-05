@@ -1,6 +1,7 @@
 import { Category } from '@/entities/Category';
 import { BaseRepositoryTypeORM } from './base-repository-typeorm';
 import { CategoryCreate, CategoryUpdate } from '../schemas/category-schema';
+import { FindOptionsWhere } from 'typeorm';
 
 export class CategoryRepositoryTypeORM extends BaseRepositoryTypeORM<Category> {
   protected getEntity(): new () => Category {
@@ -9,7 +10,7 @@ export class CategoryRepositoryTypeORM extends BaseRepositoryTypeORM<Category> {
 
   async findByName(name: string): Promise<Category | null> {
     const repository = await this.getRepository();
-    return await repository.findOne({ where: { name } as any });
+    return await repository.findOne({ where: { name } as FindOptionsWhere<Category> });
   }
 
   // Custom create method - don't override base create to avoid type conflicts

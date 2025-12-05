@@ -2,19 +2,21 @@ import { NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 import { UserServiceTypeORM } from '../services/user-service-typeorm';
 
+export interface AuthUser {
+  id: string;
+  email: string;
+  role?: string;
+}
+
 export interface AuthRequest extends Request {
   userId?: string;
-  user?: {
-    id: string;
-    email: string;
-    role?: string;
-  };
+  user?: AuthUser;
 }
 
 /**
  * Verify JWT token from Authorization header
  */
-export async function verifyToken(request: Request): Promise<{ userId: string; user?: any } | null> {
+export async function verifyToken(request: Request): Promise<{ userId: string; user?: AuthUser } | null> {
   const authHeader = request.headers.get('authorization');
   
   if (!authHeader || !authHeader.startsWith('Bearer ')) {

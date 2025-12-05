@@ -18,11 +18,11 @@ export class OrderServiceTypeORM {
   }
 
   async findById(id: string): Promise<Order> {
-    const order = await this.repository.findById(id);
+    const order = await this.repository.findByIdWithRelations(id);
     if (!order) {
       throw new NotFoundError('Order not found');
     }
-    return order as any;
+    return order as unknown as Order;
   }
 
   async findByUserId(userId: string): Promise<Order[]> {
@@ -38,11 +38,11 @@ export class OrderServiceTypeORM {
     if (filters?.status && filters.status !== undefined) {
       where.status = filters.status;
     }
-    return await this.repository.findAll(Object.keys(where).length > 0 ? where : undefined);
+    return await this.repository.findAllWithRelations(Object.keys(where).length > 0 ? where : undefined) as unknown as Order[];
   }
 
   async update(id: string, data: OrderUpdate): Promise<Order> {
-    const order = await this.findById(id) as any; // Check if order exists
+    const order = await this.findById(id); // Check if order exists
     
     // Prepare update data - TypeORM UpdateDateColumn tự động cập nhật khi save
     const updateData: OrderUpdate = {
@@ -54,13 +54,13 @@ export class OrderServiceTypeORM {
     // If status is being updated to COMPLETED, update table status
     if (data.status === 'COMPLETED' && order.tableId) {
       // Check if there are other pending/processing orders for this table
-      const otherOrders = await this.repository.findAll({
+      const otherOrders = await this.repository.findAllWithRelations({
         tableNumber: order.tableNumber || undefined,
         status: undefined,
       });
       
       const hasActiveOrders = otherOrders.some(
-        (o: any) => o.id.toString() !== order.id.toString() && (o.status === 'PENDING' || o.status === 'PROCESSING')
+        (o) => o.id.toString() !== order.id.toString() && (o.status === 'PENDING' || o.status === 'PROCESSING')
       );
       
       if (!hasActiveOrders && order.tableId) {
@@ -80,9 +80,9 @@ export class OrderServiceTypeORM {
         throw new BadRequestError('Product quantity must be positive');
       }
 
-      const product = await this.productService.findById(item.productId) as any;
+      const product = await this.productService.findById(item.productId);
       // Chỉ kiểm tra stock nếu product có stock tracking (stock !== null && stock >= 0)
-      if (product.stock !== null && product.stock >= 0 && product.stock < item.quantity) {
+      if (product.stock !== null && product.stock !== undefined && product.stock >= 0 && product.stock < item.quantity) {
         throw new BadRequestError(`Insufficient stock for product ${product.name}`);
       }
       total += product.price * item.quantity;
@@ -110,7 +110,7 @@ export class OrderServiceTypeORM {
       throw new BadRequestError(`Table ${tableNumber} is not available. Please choose another table.`);
     }
     
-    const pendingOrders = await this.repository.findAll({
+    const pendingOrders = await this.repository.findAllWithRelations({
       tableNumber,
       status: 'PENDING',
     });
@@ -162,7 +162,7 @@ export class OrderServiceTypeORM {
 
     // Use TypeORM transaction
     const dataSource = await getDataSource();
-    return await dataSource.transaction(async (manager) => {
+    return await dataSource.transaction(async () => {
       // Check stock and calculate total
       const total = await this.validateProductsAndCalculateTotal(data.products);
 
