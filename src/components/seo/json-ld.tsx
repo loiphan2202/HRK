@@ -1,5 +1,3 @@
-'use client'
-
 import Script from 'next/script'
 
 interface ProductJsonLdProps {
@@ -64,6 +62,11 @@ export function OrganizationJsonLd({ baseUrl = 'http://localhost:3000' }: Readon
     logo: `${baseUrl}/og-image.jpg`,
     servesCuisine: 'Vietnamese',
     priceRange: '$$',
+  }
+
+  // Skip rendering during build to avoid static generation issues
+  if (process.env.NEXT_PHASE === 'phase-production-build') {
+    return null;
   }
 
   return (
