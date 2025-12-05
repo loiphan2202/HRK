@@ -15,10 +15,8 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  // Skip static generation for error pages to avoid Html import issues
-  generateBuildId: async () => {
-    return 'build-' + Date.now();
-  },
+  // Use standalone output for better Heroku compatibility
+  output: 'standalone',
 };
 
 export default nextConfig;
