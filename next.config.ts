@@ -15,6 +15,10 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  // Disable static optimization for error pages to avoid Html import issues
+  experimental: {
+    missingSuspenseWithCSRBailout: false,
+  },
 };
 
 export default nextConfig;
