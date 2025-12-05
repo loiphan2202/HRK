@@ -1,5 +1,6 @@
 import { UserController } from '@/server/controllers/user-controller';
-import { requireAuth, requireAdmin, getUserFromRequest } from '@/server/middleware/auth';
+import { requireAuth, requireAdmin } from '@/server/middleware/auth';
+import { getUserFromRequest } from '@/server/middleware/helpers';
 
 const controller = new UserController();
 

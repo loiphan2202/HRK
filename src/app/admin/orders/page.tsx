@@ -252,7 +252,7 @@ export default function AdminOrdersPage() {
     const invoiceHTML = generateOrderInvoiceHTML(order)
     const printWindow = window.open('', '_blank')
     if (printWindow) {
-      // eslint-disable-next-line deprecation/deprecation
+      // Using document.write for invoice printing (deprecated but necessary for this use case)
       printWindow.document.write(invoiceHTML)
       printWindow.document.close()
       printWindow.onload = () => {
