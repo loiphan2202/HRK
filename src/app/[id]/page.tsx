@@ -12,7 +12,6 @@ import { ShoppingCart, ArrowLeft, Plus, Minus } from "lucide-react"
 import { useCartStore } from "@/store/cart-store"
 import { useAuthStore } from "@/store/auth-store"
 import { useToast } from "@/components/ui/use-toast"
-import { ProductJsonLd } from "@/components/seo/json-ld"
 
 interface Product {
   id: string
@@ -160,11 +159,7 @@ export default function ProductDetailPage() {
     )
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
-
   return (
-    <>
-      {product && <ProductJsonLd product={product} baseUrl={baseUrl} />}
       <div className="flex flex-col space-y-6 sm:space-y-8 w-full px-4 sm:px-6 lg:px-0">
         <Button
           variant="ghost"
@@ -279,8 +274,7 @@ export default function ProductDetailPage() {
           )}
         </div>
       </div>
-      </div>
-    </>
+    </div>
   )
 }
 
